@@ -1,36 +1,20 @@
-<!DOCTYPE html><html lang="mr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>मेहकर दुकान यादी</title>
-<style>
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,'Noto Sans Devanagari',sans-serif;background:linear-gradient(160deg,#0b1f4d,#1b3a8a 60%,#0e7c66);min-height:100vh;padding:14px;color:#16213e}
-.w{max-width:520px;margin:0 auto}h1{color:#fff;font-size:24px;margin:6px 0 10px}
-input{width:100%;padding:13px;border:0;border-radius:12px;font-size:16px;margin-bottom:10px}
-.c{background:#fff;border-radius:16px;padding:14px;margin:10px 0}.c img{width:100%;max-height:160px;object-fit:cover;border-radius:12px;margin-bottom:8px}
-.c small{display:block;color:#5b6785;margin-top:3px}.chip{font-size:12px;background:#e6eaf3;padding:2px 8px;border-radius:99px;margin-left:6px}
-.o{background:#fff3c4;border-radius:10px;padding:8px;margin-top:8px;font-weight:700}
-.b{display:flex;gap:6px;margin-top:10px}.b a{flex:1;text-align:center;padding:11px 4px;border-radius:10px;background:#1b3a8a;color:#fff;text-decoration:none;font-weight:700;font-size:14px}
-.b a.w2{background:#0e7c66}.b a.m{background:#d6003a}.foot{text-align:center;color:#fff;font-weight:700;font-size:13px;margin:18px 0}
-</style></head><body><div class="w"><h1>🏪 मेहकर दुकान यादी</h1><input id="q" placeholder="🔎 दुकान, गाव किंवा प्रकार शोधा" oninput="draw()"><div id="l"><div class="c">लोड होत आहे...</div></div>
-<div class="foot">D COMPANY, मेहकर • 9607636444</div></div>
-<script>
-// >>> इथे तुमची Apps Script ची /exec लिंक टाका (शेवटी ?action=shops ठेवा) <<<
-var API='https://script.google.com/macros/s/AKfycbwRCa7vyyvTrmzL7mQmc926-7T04OcDJrARTyXo7V99nLDBP9tUihLatxSCaEbUqfw/exec?action=shops';
-
-var D=[],ID=new URLSearchParams(location.search).get('id')||'',CK='shops_cache_v1';
-function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-function visible(s){var st=String(s.status||'').toLowerCase();return s.name&&st!=='deleted'&&st!=='trash'&&st!=='hidden'}
-function draw(){var q=document.getElementById('q').value.toLowerCase();
- var rs=D.filter(function(s){return!q||[s.name,s.category,s.area,s.address].join(' ').toLowerCase().indexOf(q)>=0});
- rs.sort(function(a,b){return(b.id==ID)-(a.id==ID)});
- document.getElementById('l').innerHTML=rs.map(function(s){
-  var mp=s.maps&&String(s.maps).indexOf('https://')==0?s.maps:(s.lat?'https://www.google.com/maps?q='+encodeURIComponent(s.lat+','+s.lng):'');
-  return'<div class="c">'+(s.photo&&String(s.photo).indexOf('https://')==0?'<img src="'+esc(s.photo)+'" onerror="this.remove()">':'')+'<b>'+esc(s.name)+'</b><span class="chip">'+esc(s.category)+'</span>'+(s.address?'<small>📍 '+esc(s.address)+'</small>':'')+(s.hours?'<small>🕘 '+esc(s.hours)+'</small>':'')+(s.offer?'<div class="o">🎁 '+esc(s.offer)+'</div>':'')+
-  '<div class="b">'+(s.phone?'<a href="tel:'+esc(s.phone)+'">📞 कॉल</a>':'')+((s.whatsapp||s.phone)?'<a class="w2" href="https://wa.me/91'+esc(s.whatsapp||s.phone)+'" target="_blank" rel="noopener">💬 WhatsApp</a>':'')+(mp?'<a class="m" href="'+esc(mp)+'" target="_blank" rel="noopener">🗺 नकाशा</a>':'')+'</div></div>'}).join('')||'<div class="c">काही सापडले नाही</div>'}
-function setData(a){D=(Array.isArray(a)?a:[]).filter(visible);draw()}
-// आधी जुना (cache) डेटा लगेच दाखवा, मग नवीन डेटा आणून बदला
-try{var old=localStorage.getItem(CK);if(old)setData(JSON.parse(old))}catch(e){}
-fetch(API).then(function(r){return r.json()}).then(function(a){
-  setData(a);try{localStorage.setItem(CK,JSON.stringify(a))}catch(e){}
-}).catch(function(){
-  if(!D.length)document.getElementById('l').innerHTML='<div class="c">माहिती मिळाली नाही. इंटरनेट तपासून पुन्हा प्रयत्न करा.</div>'
-});
-</script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Maha Business Hub (D Company, Mehkar)</title>
+    <meta name="description" content="Local business directory, daily offers, WhatsApp connects, and lead hub for Mehkar and Lonar by D Company." />
+    <meta property="og:title" content="Maha Business Hub (D Company, Mehkar)" />
+    <meta property="og:description" content="Local business directory, daily offers, WhatsApp connects, and lead hub for Mehkar and Lonar by D Company." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-slate-50 text-slate-900 font-['Plus_Jakarta_Sans',sans-serif] antialiased selection:bg-amber-100 selection:text-amber-900">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
