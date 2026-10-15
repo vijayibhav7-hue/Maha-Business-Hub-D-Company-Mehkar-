@@ -15,7 +15,10 @@ import { Business, ViewMode, Category, Region } from './types';
 import { 
   getBusinesses, 
   getAdminSettings, 
-  initStorage 
+  initStorage,
+  trackReferralClick,
+  recordWebsiteVisit,
+  recordCampaignQRScan
 } from './services/storage';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { Header } from './components/Header';
@@ -27,10 +30,14 @@ import { CouponClaimModal } from './components/CouponClaimModal';
 import { DQRModal } from './components/DQRModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ShopOwnerPortal } from './components/ShopOwnerPortal';
+import { CustomerPortal } from './components/CustomerPortal';
 import { TickerMarquee } from './components/TickerMarquee';
 import { BannerSlider } from './components/BannerSlider';
 import { AdPopupModal } from './components/AdPopupModal';
 import { AboutDCompanyModal } from './components/AboutDCompanyModal';
+import { CampaignBannerHero } from './components/CampaignBannerHero';
+import { MerchantLandingPage } from './components/MerchantLandingPage';
+import { CampaignAssetsModal } from './components/CampaignAssetsModal';
 
 function AppContent() {
   const { t, language } = useLanguage();
@@ -50,22 +57,31 @@ function AppContent() {
   const [selectedShopDQR, setSelectedShopDQR] = useState<Business | null>(null);
   const [showAdPopup, setShowAdPopup] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showCampaignAssetsModal, setShowCampaignAssetsModal] = useState(false);
 
   // Initialize data on load
   useEffect(() => {
     initStorage();
+    recordWebsiteVisit();
     const data = getBusinesses();
     setBusinesses(data);
     setAdminSettings(getAdminSettings());
 
-    // Check if opened via D-QR scan link e.g., ?shop=biz-1
+    // Check if opened via D-QR scan link e.g., ?shop=biz-1 or ?ref=PASS-MBH-123
     const params = new URLSearchParams(window.location.search);
     const shopParam = params.get('shop');
+    const refParam = params.get('ref');
+
     if (shopParam) {
+      recordCampaignQRScan();
       const matched = data.find((b) => b.id === shopParam);
       if (matched) {
         setSelectedShopDetail(matched);
       }
+    }
+
+    if (refParam) {
+      trackReferralClick(refParam, shopParam || undefined);
     }
   }, [language]);
 
@@ -78,13 +94,23 @@ function AppContent() {
   // Filtered Business Listings
   const filteredBusinesses = businesses.filter((b) => {
     const matchesCategory = selectedCategory === 'All' || b.category === selectedCategory;
-    const matchesRegion = selectedRegion === 'All' || b.region === selectedRegion;
+    const matchesRegion =
+      selectedRegion === 'All' ||
+      b.region === selectedRegion ||
+      b.district === selectedRegion ||
+      b.taluka === selectedRegion ||
+      b.village === selectedRegion ||
+      (b.address && b.address.toLowerCase().includes(selectedRegion.toLowerCase()));
+
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
       !q ||
       b.name.toLowerCase().includes(q) ||
       b.tagline.toLowerCase().includes(q) ||
       b.address.toLowerCase().includes(q) ||
+      (b.district && b.district.toLowerCase().includes(q)) ||
+      (b.taluka && b.taluka.toLowerCase().includes(q)) ||
+      (b.village && b.village.toLowerCase().includes(q)) ||
       b.ownerName.toLowerCase().includes(q) ||
       b.ownerPhone.includes(q) ||
       b.todaysOffer.title.toLowerCase().includes(q) ||
@@ -135,17 +161,17 @@ function AppContent() {
         {/* MAIN CONTENT VIEW CONTROLLER */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
           
-          {/* VIEW 1: PUBLIC DIRECTORY */}
+          {/* VIEW 1: PUBLIC DIRECTORY - SHOPS, ADS & COUPONS FRONT & CENTER */}
           {currentView === 'directory' && (
-            <div className="space-y-5">
+            <div className="space-y-6">
               
-              {/* Homepage Carousel Banner Slider */}
+              {/* Top Priority 1: Homepage Carousel Banner Slider (Hot Ads & Festival Offers) */}
               <BannerSlider
                 banners={adminSettings.banners || []}
                 onSelectShop={handleSelectShopFromBanner}
               />
 
-              {/* Category & Region Filter */}
+              {/* Priority 2: Category & Region Filter */}
               <CategoryFilter
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
@@ -154,28 +180,29 @@ function AppContent() {
                 categoryCounts={categoryCounts}
               />
 
-              {/* Results Summary Bar */}
+              {/* Priority 3: Results Summary Bar */}
               <div className="flex items-center justify-between text-xs text-slate-600 font-bold px-1">
-                <span>
-                  {t('showingShops', 'Total Shops')}: <strong className="text-slate-900">{filteredBusinesses.length}</strong> ({selectedRegion === 'All' ? 'Mehkar & Lonar' : selectedRegion})
+                <span className="flex items-center gap-1.5 text-slate-900 font-black">
+                  <Store className="w-4 h-4 text-emerald-600" />
+                  <span>{t('showingShops', 'Total Shops')}: <strong className="text-amber-700">{filteredBusinesses.length}</strong> ({selectedRegion === 'All' ? 'संपूर्ण महाराष्ट्र' : selectedRegion})</span>
                 </span>
 
                 <button
                   onClick={refreshBusinesses}
-                  className="text-slate-500 hover:text-slate-800 flex items-center gap-1 font-semibold"
+                  className="text-slate-500 hover:text-slate-900 flex items-center gap-1 font-bold text-[11px] bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Refresh
+                  <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Refresh</span>
                 </button>
               </div>
 
-              {/* Business Cards Grid */}
+              {/* Priority 4: Verified Local Business Cards Grid */}
               {filteredBusinesses.length === 0 ? (
-                <div className="bg-white rounded-3xl p-12 text-center space-y-3 border border-slate-200">
+                <div className="bg-white rounded-3xl p-12 text-center space-y-3 border border-slate-200 shadow-xs">
                   <Store className="w-12 h-12 text-slate-300 mx-auto" />
                   <h3 className="text-base font-bold text-slate-800">No Shops Found</h3>
                   <p className="text-xs text-slate-500 max-w-md mx-auto">
-                    No verified businesses matched your current search or category filter. Try clearing your filters.
+                    No verified businesses matched your current search or category filter. Try resetting your filters.
                   </p>
                   <button
                     onClick={() => {
@@ -183,7 +210,7 @@ function AppContent() {
                       setSelectedRegion('All');
                       setSearchQuery('');
                     }}
-                    className="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold"
+                    className="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs"
                   >
                     Reset All Filters
                   </button>
@@ -201,6 +228,15 @@ function AppContent() {
                   ))}
                 </div>
               )}
+
+              {/* Priority 5: D COMPANY Campaign Onboarding Hero Banner (Placed below shop listings to avoid customer confusion) */}
+              <div className="pt-4 border-t border-slate-200">
+                <CampaignBannerHero
+                  onSelectMerchant={() => setCurrentView('campaign-merchant')}
+                  onSelectCustomer={() => setCurrentView('customer-portal')}
+                  onOpenAssets={() => setShowCampaignAssetsModal(true)}
+                />
+              </div>
 
             </div>
           )}
@@ -261,6 +297,21 @@ function AppContent() {
             />
           )}
 
+          {/* VIEW 5: MAHA BUSINESS HUB CUSTOMER PORTAL */}
+          {currentView === 'customer-portal' && (
+            <CustomerPortal
+              onSelectShopDetail={setSelectedShopDetail}
+            />
+          )}
+
+          {/* FEATURE 2 VIEW: MERCHANT LANDING PAGE ("मी दुकानदार आहे") */}
+          {currentView === 'campaign-merchant' && (
+            <MerchantLandingPage
+              onBackToDirectory={() => setCurrentView('directory')}
+              onOpenShopOwnerPortal={() => setCurrentView('shop-owner')}
+            />
+          )}
+
         </main>
       </div>
 
@@ -290,10 +341,26 @@ function AppContent() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-[11px]">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-[11px]">
+            <button
+              onClick={() => setCurrentView('campaign-merchant')}
+              className="text-amber-400 hover:underline font-bold transition-colors flex items-center gap-1"
+            >
+              <Store className="w-3.5 h-3.5" />
+              <span>मी दुकानदार आहे</span>
+            </button>
+            <span>·</span>
+            <button
+              onClick={() => setShowCampaignAssetsModal(true)}
+              className="text-emerald-400 hover:underline font-bold transition-colors flex items-center gap-1"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>प्रचार साहित्य</span>
+            </button>
+            <span>·</span>
             <button
               onClick={() => setShowAboutModal(true)}
-              className="text-amber-400 hover:underline font-bold transition-colors flex items-center gap-1"
+              className="text-slate-300 hover:underline font-bold transition-colors flex items-center gap-1"
             >
               <Building2 className="w-3.5 h-3.5" />
               <span>About D Company</span>
@@ -356,6 +423,12 @@ function AppContent() {
         <AboutDCompanyModal
           settings={adminSettings}
           onClose={() => setShowAboutModal(false)}
+        />
+      )}
+
+      {showCampaignAssetsModal && (
+        <CampaignAssetsModal
+          onClose={() => setShowCampaignAssetsModal(false)}
         />
       )}
 

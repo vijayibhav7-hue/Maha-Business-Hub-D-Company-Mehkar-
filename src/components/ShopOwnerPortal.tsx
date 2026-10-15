@@ -19,10 +19,22 @@ import {
   AlertCircle,
   Clock
 } from 'lucide-react';
-import { Business, Lead, SocialLinks } from '../types';
-import { getShopByPinOrPhone, getLeads, addAdRequest, addStandeeOrder, submitShopPendingUpdate } from '../services/storage';
+import { Business, Lead, SocialLinks, CouponRedemption, Referral } from '../types';
+import { 
+  getShopByPinOrPhone, 
+  getLeads, 
+  addAdRequest, 
+  addStandeeOrder, 
+  submitShopPendingUpdate,
+  getCouponRedemptions,
+  verifyCouponRedemptionByStaff,
+  getReferrals,
+  confirmReferralPurchaseByMerchant
+} from '../services/storage';
 import { useLanguage } from '../context/LanguageContext';
 import { compressImageFile } from '../utils/imageCompressor';
+import { AIMarketingGeneratorModal } from './AIMarketingGeneratorModal';
+import { PrintableStandeeModal } from './PrintableStandeeModal';
 
 interface ShopOwnerPortalProps {
   onBackToDirectory: () => void;
@@ -72,6 +84,15 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({
   const [leadQuery, setLeadQuery] = useState('');
   const [savePendingMsg, setSavePendingMsg] = useState('');
 
+  // Coupon Staff Verification State
+  const [verifyCouponCode, setVerifyCouponCode] = useState('');
+  const [verifyPinInput, setVerifyPinInput] = useState('');
+  const [verifyResult, setVerifyResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Shop Redemptions & Referrals
+  const [shopRedemptions, setShopRedemptions] = useState<CouponRedemption[]>([]);
+  const [shopReferrals, setShopReferrals] = useState<Referral[]>([]);
+
   // Ad Boost Modal
   const [showAdModal, setShowAdModal] = useState(false);
   const [adAdType, setAdAdType] = useState<'Homepage Hero Banner (₹199/3 Days)' | 'Top Category Spotlight (₹299/Week)' | 'Push Notification Broadcast (₹499)'>('Homepage Hero Banner (₹199/3 Days)');
@@ -83,11 +104,25 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({
   const [standeeAddress, setStandeeAddress] = useState('');
   const [standeeSuccess, setStandeeSuccess] = useState('');
 
+  // AI & Print Standee Modals
+  const [showAiGen, setShowAiGen] = useState(false);
+  const [showPrintStandee, setShowPrintStandee] = useState(false);
+
+  const refreshShopData = () => {
+    if (!loggedShop) return;
+    const allLeads = getLeads();
+    setShopLeads(allLeads.filter((l) => l.businessId === loggedShop.id));
+
+    const redemptions = getCouponRedemptions();
+    setShopRedemptions(redemptions.filter((r) => r.businessId === loggedShop.id));
+
+    const refs = getReferrals();
+    setShopReferrals(refs.filter((r) => r.businessId === loggedShop.id || !r.businessId));
+  };
+
   useEffect(() => {
     if (loggedShop) {
-      const allLeads = getLeads();
-      const filtered = allLeads.filter((l) => l.businessId === loggedShop.id);
-      setShopLeads(filtered);
+      refreshShopData();
 
       setOfferTitle(loggedShop.todaysOffer.title);
       setOfferTag(loggedShop.todaysOffer.discountTag);
@@ -109,6 +144,25 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({
       setStandeeAddress(loggedShop.address);
     }
   }, [loggedShop]);
+
+  const handleStaffVerifyCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loggedShop || !verifyCouponCode.trim() || !verifyPinInput.trim()) return;
+
+    const res = verifyCouponRedemptionByStaff(verifyCouponCode, loggedShop.id, verifyPinInput);
+    setVerifyResult(res);
+    if (res.success) {
+      setVerifyCouponCode('');
+      refreshShopData();
+    }
+  };
+
+  const handleConfirmReferral = (referralId: string) => {
+    if (!loggedShop) return;
+    const res = confirmReferralPurchaseByMerchant(referralId, loggedShop.id);
+    alert(res.message);
+    refreshShopData();
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,13 +382,21 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({
         
         {/* EDIT OFFER, PHOTO & SOCIAL LINKS */}
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2 font-marathi">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-600" />
               <h3 className="text-base font-bold text-slate-900">
                 {t('updateOffer', "Update Offer & Shop Photo")}
               </h3>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowAiGen(true)}
+              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>AI १-क्लिक ऑफर आयडिया</span>
+            </button>
           </div>
 
           {savePendingMsg && (
@@ -585,6 +647,110 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({
 
       </div>
 
+      {/* STAFF COUPON VERIFICATION & REFERRAL CONFIRMATION GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* WIDGET 1: COUPON STAFF VALIDATOR */}
+        <div className="bg-white rounded-3xl p-6 border border-emerald-200 shadow-xs space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <UserCheck className="w-5 h-5 text-emerald-600" />
+            <h3 className="text-base font-bold text-slate-900">
+              कूपन रिडेम्प्शन व्हॅलिडेटर (Coupon Staff Verification)
+            </h3>
+          </div>
+
+          <p className="text-xs text-slate-500">
+            ग्राहकाने दुकानात दाखवलेला कूपन कोड आणि तुमचा दुकान पिन टाकून कूपनची पुष्टी करा.
+          </p>
+
+          {verifyResult && (
+            <div className={`p-3 rounded-2xl text-xs font-bold ${verifyResult.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+              {verifyResult.message}
+            </div>
+          )}
+
+          <form onSubmit={handleStaffVerifyCoupon} className="space-y-3 text-xs">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">ग्राहक कूपन कोड (e.g. MAHA-AGR-1001)</label>
+              <input
+                type="text"
+                required
+                placeholder="उदा. MAHA-MEH-8921"
+                value={verifyCouponCode}
+                onChange={(e) => setVerifyCouponCode(e.target.value.toUpperCase())}
+                className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold uppercase"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">दुकान पिन (Shop PIN)</label>
+              <input
+                type="password"
+                required
+                placeholder="तुमचा ४ अंकी दुकान पिन"
+                value={verifyPinInput}
+                onChange={(e) => setVerifyPinInput(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs"
+            >
+              कूपन रिडेम्प्शन व्हेरीफाय व कन्फर्म करा
+            </button>
+          </form>
+        </div>
+
+        {/* WIDGET 2: REFERRAL PURCHASE CONFIRMATION */}
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <Users className="w-5 h-5 text-amber-600" />
+            <h3 className="text-base font-bold text-slate-900">
+              रेफरल खरेदी पुष्टी (Confirm Referral Purchases)
+            </h3>
+          </div>
+
+          <p className="text-xs text-slate-500">
+            ग्राहकाने सुचवलेल्या खरेदीची (Referral Purchase) व्यापारी म्हणून पुष्टी करा.
+          </p>
+
+          <div className="space-y-2 max-h-[220px] overflow-y-auto">
+            {shopReferrals.length === 0 ? (
+              <div className="text-center py-6 text-slate-400 text-xs">
+                अद्याप कोणत्याही रेफरल खरेदीची नोंद नाही.
+              </div>
+            ) : (
+              shopReferrals.map((ref) => (
+                <div key={ref.id} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-mono font-bold text-slate-900">{ref.referralCode}</span>
+                    <p className="text-[10px] text-slate-500">
+                      तारीख: {new Date(ref.clickedAt).toLocaleDateString('mr-IN')}
+                    </p>
+                  </div>
+
+                  {ref.status === 'VERIFIED' ? (
+                    <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-full border border-emerald-300">
+                      पुष्टी झाली
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleConfirmReferral(ref.id)}
+                      className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] rounded-lg shadow-xs"
+                    >
+                      खरेदी पुष्टी करा
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+      </div>
+
       {/* REQUEST AD MODAL */}
       {showAdModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
@@ -669,6 +835,26 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({
           </div>
         </div>
       )}
+
+      {/* AI OFFER GENERATOR MODAL */}
+      <AIMarketingGeneratorModal
+        isOpen={showAiGen}
+        onClose={() => setShowAiGen(false)}
+        shop={loggedShop}
+        onApplyOffer={(title, tag, desc) => {
+          setOfferTitle(title);
+          setOfferTag(tag);
+          setOfferDesc(desc);
+          setShowAiGen(false);
+        }}
+      />
+
+      {/* PRINTABLE QR STANDEE MODAL */}
+      <PrintableStandeeModal
+        isOpen={showPrintStandee}
+        onClose={() => setShowPrintStandee(false)}
+        shop={loggedShop}
+      />
 
     </div>
   );

@@ -80,7 +80,7 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
               Verified D-Company Listing
             </span>
             <span className="bg-amber-600 text-white text-xs font-extrabold px-3 py-1 rounded-full shadow-md">
-              {business.region} Region
+              {business.district ? `${business.taluka || business.region}, जि. ${business.district}` : `${business.region} Region`}
             </span>
           </div>
 

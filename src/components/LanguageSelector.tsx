@@ -6,15 +6,15 @@ import { Language } from '../types';
 export const LanguageSelector: React.FC = () => {
   const { language, setLanguage } = useLanguage();
 
-  const LANGS: { id: Language; label: string; short: string }[] = [
-    { id: 'mr', label: 'मराठी', short: 'मराठी' },
-    { id: 'hi', label: 'हिंदी', short: 'हिंदी' },
-    { id: 'en', label: 'English', short: 'EN' },
+  const LANGS: { id: Language; label: string; short: string; mini: string }[] = [
+    { id: 'mr', label: 'मराठी', short: 'मराठी', mini: 'म' },
+    { id: 'hi', label: 'हिंदी', short: 'हिंदी', mini: 'हि' },
+    { id: 'en', label: 'English', short: 'EN', mini: 'EN' },
   ];
 
   return (
-    <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-amber-500/30 shadow-sm">
-      <div className="pl-1.5 pr-1 text-amber-400">
+    <div className="flex items-center bg-slate-900 p-0.5 sm:p-1 rounded-xl border border-amber-500/30 shadow-xs shrink-0">
+      <div className="hidden sm:block pl-1 pr-0.5 text-amber-400">
         <Languages className="w-3.5 h-3.5" />
       </div>
       <div className="flex items-center gap-0.5">
@@ -24,13 +24,14 @@ export const LanguageSelector: React.FC = () => {
             <button
               key={item.id}
               onClick={() => setLanguage(item.id)}
-              className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all ${
+              className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-black rounded-lg transition-all ${
                 isSelected
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800'
               }`}
             >
-              {item.short}
+              <span className="hidden sm:inline">{item.short}</span>
+              <span className="sm:hidden">{item.mini}</span>
             </button>
           );
         })}

@@ -84,7 +84,7 @@ export const BusinessCard: React.FC<BusinessCardProps> = ({
 
             <span className="bg-amber-600 text-white text-[11px] font-extrabold px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
               <MapPin className="w-3 h-3" />
-              {business.region}
+              {business.district ? `${business.taluka || business.region}, जि. ${business.district}` : business.region}
             </span>
           </div>
 

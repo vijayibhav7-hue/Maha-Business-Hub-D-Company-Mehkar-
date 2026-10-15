@@ -29,9 +29,13 @@ import {
   Facebook,
   Instagram,
   Twitter,
-  Youtube
+  Youtube,
+  QrCode,
+  Eye,
+  CheckCircle2,
+  BarChart2
 } from 'lucide-react';
-import { Business, Lead, AdminSettings, Category, PlanType, BannerSlide, AdRequest, StandeeOrder, AuditLog, SocialLinks } from '../types';
+import { Business, Lead, AdminSettings, Category, PlanType, BannerSlide, AdRequest, StandeeOrder, AuditLog, SocialLinks, MerchantInquiry, CampaignStats } from '../types';
 import { 
   verifyAdminPin, 
   getBusinesses, 
@@ -49,10 +53,22 @@ import {
   sendSimulatedOTP,
   verifySimulatedOTP,
   approveShopPendingUpdate,
-  rejectShopPendingUpdate
+  rejectShopPendingUpdate,
+  getMerchantInquiries,
+  updateMerchantInquiryStatus,
+  getCampaignStats,
+  extendShopSubscription,
+  getCustomers,
+  updateShopPin,
+  updateShopCredentials,
+  clearAllDemoData
 } from '../services/storage';
 import { useLanguage } from '../context/LanguageContext';
 import { compressImageFile } from '../utils/imageCompressor';
+import { ShopImporterModal } from './ShopImporterModal';
+import { AIMarketingGeneratorModal } from './AIMarketingGeneratorModal';
+import { PrintableStandeeModal } from './PrintableStandeeModal';
+import { WhatsAppCampaignCenterModal } from './WhatsAppCampaignCenterModal';
 
 interface AdminDashboardProps {
   onBackToDirectory: () => void;
@@ -92,6 +108,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
   const [adRequests, setAdRequests] = useState<AdRequest[]>(getAdRequests());
   const [standeeOrders, setStandeeOrders] = useState<StandeeOrder[]>(getStandeeOrders());
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(getAuditLogs());
+  const [merchantInquiries, setMerchantInquiries] = useState<MerchantInquiry[]>(getMerchantInquiries());
+  const [campaignStats, setCampaignStats] = useState<CampaignStats>(getCampaignStats());
 
   // Tabs
   const [activeTab, setActiveTab] = useState<'overview' | 'approvals' | 'shops' | 'ads' | 'orders' | 'banners' | 'ticker' | 'subscriptions' | 'leads' | 'logs' | 'company' | 'settings'>('overview');
@@ -147,9 +165,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
   const [compAddr, setCompAddr] = useState(settings.companyAddress || 'Mehkar, Dist. Buldhana');
   const [compAbout, setCompAbout] = useState(settings.companyAbout || '');
 
-  // Security Settings
+  // Security & Credentials Control State
   const [newPin, setNewPin] = useState('');
+  const [adminEmailAcc, setAdminEmailAcc] = useState(settings.adminEmail || 'dcompany1410@gmail.com');
   const [pinSuccess, setPinSuccess] = useState('');
+  const [credSearch, setCredSearch] = useState('');
+  const [editingCredShop, setEditingCredShop] = useState<Business | null>(null);
+  const [credPhoneInput, setCredPhoneInput] = useState('');
+  const [credPinInput, setCredPinInput] = useState('');
+  const [credOwnerNameInput, setCredOwnerNameInput] = useState('');
+  const [credSuccessMsg, setCredSuccessMsg] = useState('');
+
+  // New Feature Modals
+  const [isImporterOpen, setIsImporterOpen] = useState(false);
+  const [isAiGenOpen, setIsAiGenOpen] = useState(false);
+  const [aiGenShop, setAiGenShop] = useState<Business | null>(null);
+  const [isStandeeModalOpen, setIsStandeeModalOpen] = useState(false);
+  const [standeeShop, setStandeeShop] = useState<Business | null>(null);
+  const [isWhatsAppCampaignOpen, setIsWhatsAppCampaignOpen] = useState(false);
 
   useEffect(() => {
     if (lockoutTime > 0) {
@@ -165,6 +198,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
     setAdRequests(getAdRequests());
     setStandeeOrders(getStandeeOrders());
     setAuditLogs(getAuditLogs());
+    setMerchantInquiries(getMerchantInquiries());
+    setCampaignStats(getCampaignStats());
   };
 
   const handlePinLogin = (e: React.FormEvent) => {
@@ -386,6 +421,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
     refreshData();
   };
 
+  const handleUpdateAdStatus = (id: string, status: AdRequest['status']) => {
+    updateAdRequestStatus(id, status);
+    refreshData();
+  };
+
+  const handleUpdateStandeeStatus = (id: string, status: StandeeOrder['status']) => {
+    updateStandeeOrderStatus(id, status);
+    refreshData();
+  };
+
+  const handleUpdateInquiryStatus = (id: string, status: MerchantInquiry['status']) => {
+    updateMerchantInquiryStatus(id, status);
+    refreshData();
+  };
+
+  const handleExtendShopValidity = (shopId: string) => {
+    extendShopSubscription(shopId, 1);
+    refreshData();
+    alert('Subscription extended by 1 Month!');
+  };
+
   const sendWhatsAppRenewalReminder = (shop: Business) => {
     const cleanNum = shop.ownerPhone.replace(/[^0-9]/g, '');
     const msg = encodeURIComponent(
@@ -413,14 +469,69 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
   const handleChangePin = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPin.trim().length < 4) {
-      alert('PIN must be at least 4 digits');
+      alert('Security PIN/Password must be at least 4 characters');
       return;
     }
-    updateAdminSettings({ pinHash: newPin.trim() });
+    updateAdminSettings({ 
+      pinHash: newPin.trim(),
+      adminEmail: adminEmailAcc.trim() || 'dcompany1410@gmail.com'
+    });
     setSettings(getAdminSettings());
     setNewPin('');
-    setPinSuccess('Admin Security PIN updated successfully!');
-    setTimeout(() => setPinSuccess(''), 3000);
+    setPinSuccess('Admin Login Credentials & Security PIN updated successfully!');
+    setTimeout(() => setPinSuccess(''), 4000);
+  };
+
+  const handleOpenEditCreds = (shop: Business) => {
+    setEditingCredShop(shop);
+    setCredPhoneInput(shop.ownerPhone);
+    setCredPinInput(shop.shopPin);
+    setCredOwnerNameInput(shop.ownerName);
+  };
+
+  const handleSaveShopCredentials = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCredShop) return;
+    if (credPinInput.trim().length < 4) {
+      alert('Shopkeeper PIN must be at least 4 digits');
+      return;
+    }
+    updateShopCredentials(editingCredShop.id, {
+      ownerPhone: credPhoneInput.trim(),
+      shopPin: credPinInput.trim(),
+      ownerName: credOwnerNameInput.trim(),
+    });
+    refreshData();
+    setCredSuccessMsg(`Credentials for "${editingCredShop.name}" updated! Phone: ${credPhoneInput}, PIN: ${credPinInput}`);
+    setEditingCredShop(null);
+    setTimeout(() => setCredSuccessMsg(''), 5000);
+  };
+
+  const handleAutoGeneratePin = () => {
+    const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
+    setCredPinInput(randomPin);
+  };
+
+  const sendShopkeeperCredentialsWhatsApp = (shop: Business) => {
+    const cleanNum = shop.ownerPhone.replace(/[^0-9]/g, '');
+    const appUrl = window.location.origin + window.location.pathname;
+    const msg = encodeURIComponent(
+      `🚩 *MAHA BUSINESS HUB — D COMPANY* 🚩\n\n` +
+      `नमस्कार *${shop.ownerName}* जी!\n` +
+      `तुमच्या *${shop.name}* दुकानाचा शॉपकीपर लॉगिन तपशील खालीलप्रमाणे आहे:\n\n` +
+      `📱 *लॉगिन ID / फोन नंबर:* ${shop.ownerPhone}\n` +
+      `🔑 *शॉप PIN / पासवर्ड:* ${shop.shopPin}\n\n` +
+      `पोर्टल उघडून कूपन आणि फोटो अपडेट करण्यासाठी येथे क्लिक करा:\n${appUrl}`
+    );
+    window.open(`https://wa.me/91${cleanNum}?text=${msg}`, '_blank');
+  };
+
+  const handleWipeDemoData = () => {
+    if (window.confirm('तुम्हाला खात्री आहे का? सर्व सॅम्पल डेमो दुकाने व डेटा १-क्लिकमध्ये साफ होईल आणि ॲप पूर्णपणे नवीन आणि लाईव्ह (Fresh Live) होईल.')) {
+      clearAllDemoData();
+      alert('सर्व डेमो डेटा यशस्वीरीत्या साफ झाला आहे! ॲप आता थेट नवीन दुकानांसाठी रिफ्रेश होत आहे.');
+      window.location.href = window.location.origin + window.location.pathname;
+    }
   };
 
   const handleSaveBanner = (e: React.FormEvent) => {
@@ -515,113 +626,154 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
           {lockoutTime > 0 && (
             <div className="bg-amber-50 text-amber-900 text-xs p-3 rounded-xl border border-amber-300 font-bold flex items-center justify-center gap-2">
               <Clock className="w-4 h-4 text-amber-600 animate-spin" />
-              <span>System locked! Try again in {lockoutTime}s</span>
+              <span>Lockout active ({lockoutTime}s)</span>
             </div>
           )}
 
           {authMode === 'pin' ? (
             <form onSubmit={handlePinLogin} className="space-y-4">
-              <div className="relative">
-                <KeyRound className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  disabled={lockoutTime > 0}
-                  placeholder="Enter Security PIN"
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 text-center text-lg font-mono font-black tracking-widest rounded-xl border border-slate-300 text-slate-900 focus:ring-2 focus:ring-amber-500"
-                />
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 text-left">
+                  Enter Admin PIN
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="Enter Master PIN"
+                    value={pinInput}
+                    onChange={(e) => setPinInput(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 text-xs font-mono font-bold rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={lockoutTime > 0}
-                className="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-bold rounded-xl shadow-md"
+                className="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-amber-400 font-extrabold text-xs rounded-xl shadow-lg"
               >
-                {lockoutTime > 0 ? `Locked (${lockoutTime}s)` : 'Unlock Admin Dashboard'}
+                Verify PIN & Login
               </button>
             </form>
           ) : (
-            <div className="space-y-4">
-              {!otpSent ? (
-                <form onSubmit={handleSendOtp} className="space-y-4">
-                  <div className="relative">
-                    <Mail className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="Admin Email / Mobile Number"
-                      value={adminContact}
-                      onChange={(e) => setAdminContact(e.target.value)}
-                      className="w-full pl-10 pr-3 py-2.5 text-xs font-bold rounded-xl border border-slate-300"
-                    />
-                  </div>
+            <form onSubmit={otpSent ? handleVerifyOtp : handleSendOtp} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 text-left">
+                  Admin Email / Contact
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={adminContact}
+                  onChange={(e) => setAdminContact(e.target.value)}
+                  className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-300 font-bold"
+                />
+              </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md"
-                  >
-                    Send Verification Code
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyOtp} className="space-y-4">
-                  <div className="bg-emerald-50 text-emerald-900 p-3 rounded-xl border border-emerald-200 text-xs">
-                    <span className="font-bold">Verification Code Sent: </span>
-                    <strong className="font-mono text-emerald-700 font-extrabold text-sm">{simulatedCode}</strong>
+              {otpSent && (
+                <div>
+                  <div className="bg-emerald-50 text-emerald-800 p-2.5 rounded-xl text-[11px] mb-2 font-mono font-bold border border-emerald-200">
+                    [SIMULATED OTP CODE]: {simulatedCode}
                   </div>
-
+                  <label className="block text-xs font-semibold text-slate-700 mb-1 text-left">
+                    Enter OTP Code
+                  </label>
                   <input
                     type="text"
                     required
-                    maxLength={6}
-                    placeholder="Enter 6-digit Code"
+                    placeholder="6-digit OTP"
                     value={otpInput}
                     onChange={(e) => setOtpInput(e.target.value)}
-                    className="w-full py-3 text-center text-lg font-mono font-bold rounded-xl border border-slate-300"
+                    className="w-full px-3 py-2.5 text-xs font-mono font-bold rounded-xl border border-slate-300 text-center tracking-widest"
                   />
-
-                  <button
-                    type="submit"
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md"
-                  >
-                    Verify & Access Dashboard
-                  </button>
-                </form>
+                </div>
               )}
-            </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-lg"
+              >
+                {otpSent ? 'Verify OTP Code' : 'Send Free OTP'}
+              </button>
+            </form>
           )}
 
+          <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400">
+            D COMPANY, MEHKAR · Digital Business Partner
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="space-y-6">
       
-      {/* Dashboard Top Header */}
-      <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl border border-slate-800 space-y-4">
+      {/* Top Admin Bar */}
+      <div className="bg-slate-900 text-white p-5 rounded-3xl border border-slate-800 shadow-xl space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-400 border border-amber-500/30 shrink-0">
-              <Shield className="w-6 h-6" />
+            <div className="w-10 h-10 bg-amber-500 text-slate-950 font-black text-lg rounded-2xl flex items-center justify-center shadow-md">
+              D
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-white">{t('adminTitle', 'D Company Master Revenue Dashboard')}</h1>
-                <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                  Full Control
+                <h2 className="text-base font-extrabold text-white">D COMPANY ADMIN CONTROL</h2>
+                <span className="bg-amber-500/20 text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-md border border-amber-500/30">
+                  MEHKAR & LONAR
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Mehkar & Lonar Commercial Network CRM
+                Mehkar & Lonar Commercial Network CRM & Campaign Manager
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsImporterOpen(true)}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 transition-colors"
+              title="गूगल मॅप लिंक वरून थेट दुकान जोडा"
+            >
+              <Globe className="w-4 h-4" />
+              <span>गूगल मॅप इम्पोर्ट</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setAiGenShop(businesses[0] || null);
+                setIsAiGenOpen(true);
+              }}
+              className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 transition-colors"
+              title="AI १-क्लिक मराठी ऑफर जनरेटर"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>AI ऑफर जनरेटर</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setStandeeShop(businesses[0] || null);
+                setIsStandeeModalOpen(true);
+              }}
+              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 transition-colors"
+              title="क्यूआर स्टँडी बोर्ड प्रिंटर"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>क्यूआर स्टँडी बोर्ड</span>
+            </button>
+
+            <button
+              onClick={() => setIsWhatsAppCampaignOpen(true)}
+              className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 transition-colors"
+              title="व्हॉट्सॲप डिजिटल ब्रॉडकास्ट"
+            >
+              <Send className="w-4 h-4" />
+              <span>व्हॉट्सॲप मोहीम</span>
+            </button>
+
             <button
               onClick={() => setIsAddingShop(true)}
               className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 text-xs font-extrabold rounded-xl shadow-md flex items-center gap-1.5"
@@ -674,6 +826,146 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
           })}
         </div>
       </div>
+
+      {/* TAB: OVERVIEW */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-2">
+              <span className="text-xs text-slate-500 font-semibold">Total Net Revenue</span>
+              <div className="text-3xl font-black text-amber-600 font-mono">₹{grandTotalRevenue.toLocaleString('en-IN')}</div>
+              <p className="text-[11px] text-slate-500">Subscriptions + Ads + Standees</p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-2">
+              <span className="text-xs text-slate-500 font-semibold">Package Subscriptions</span>
+              <div className="text-3xl font-black text-emerald-700 font-mono">₹{subRevenue.toLocaleString('en-IN')}</div>
+              <p className="text-[11px] text-slate-500">{paidShops} Active Paid Shops</p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-2">
+              <span className="text-xs text-slate-500 font-semibold">Ad Booking Revenue</span>
+              <div className="text-3xl font-black text-blue-700 font-mono">₹{adRevenue.toLocaleString('en-IN')}</div>
+              <p className="text-[11px] text-slate-500">Homepage Banner Promotions</p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-2">
+              <span className="text-xs text-slate-500 font-semibold">Standee Hardware Sales</span>
+              <div className="text-3xl font-black text-purple-700 font-mono">₹{standeeRevenue.toLocaleString('en-IN')}</div>
+              <p className="text-[11px] text-slate-500">Physical Acrylic QR Boards</p>
+            </div>
+          </div>
+
+          {/* Campaign Analytics Panel */}
+          <div className="bg-gradient-to-r from-slate-900 to-amber-950 text-white rounded-3xl p-6 border border-amber-500/20 shadow-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                <BarChart2 className="w-5 h-5" />
+                <span>D COMPANY Campaign Performance Analytics</span>
+              </div>
+              <span className="bg-amber-500/20 text-amber-300 text-xs px-3 py-1 rounded-full font-mono font-bold">
+                Live Campaign Metrics
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+              <div className="bg-white/10 backdrop-blur-xs p-4 rounded-2xl border border-white/10 space-y-1">
+                <QrCode className="w-6 h-6 text-emerald-400 mx-auto" />
+                <div className="text-2xl font-black text-white font-mono">{campaignStats.qrScansCount}</div>
+                <p className="text-xs text-slate-300">Total D-QR Code Scans</p>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-xs p-4 rounded-2xl border border-white/10 space-y-1">
+                <Eye className="w-6 h-6 text-sky-400 mx-auto" />
+                <div className="text-2xl font-black text-white font-mono">{campaignStats.websiteVisitsCount}</div>
+                <p className="text-xs text-slate-300">Total Portal Visits</p>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-xs p-4 rounded-2xl border border-white/10 space-y-1">
+                <Users className="w-6 h-6 text-amber-400 mx-auto" />
+                <div className="text-2xl font-black text-white font-mono">{merchantInquiries.length}</div>
+                <p className="text-xs text-slate-300">Merchant Onboarding Inquiries</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Merchant Inquiries CRM Table */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Merchant Leads & Campaign Inquiries</h3>
+                <p className="text-xs text-slate-500">Shopkeepers who registered interest on "मी दुकानदार आहे" page</p>
+              </div>
+              <span className="bg-amber-100 text-amber-900 font-bold text-xs px-3 py-1 rounded-xl">
+                {merchantInquiries.length} Leads
+              </span>
+            </div>
+
+            {merchantInquiries.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-500 border border-slate-100 rounded-xl">
+                No merchant inquiries submitted yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-900 text-white font-bold uppercase text-[10px]">
+                    <tr>
+                      <th className="p-3">Merchant / Shop</th>
+                      <th className="p-3">Category & Region</th>
+                      <th className="p-3">Mobile Number</th>
+                      <th className="p-3">Service & Package</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {merchantInquiries.map((inq) => (
+                      <tr key={inq.id} className="hover:bg-slate-50">
+                        <td className="p-3">
+                          <div className="font-bold text-slate-900">{inq.shopName}</div>
+                          <div className="text-[10px] text-slate-500">Owner: {inq.merchantName}</div>
+                        </td>
+                        <td className="p-3">
+                          <span className="font-semibold text-slate-800">{inq.category}</span>
+                          <span className="text-slate-400"> · </span>
+                          <span className="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-md text-[10px]">{inq.region}</span>
+                        </td>
+                        <td className="p-3 font-mono font-bold text-emerald-800">{inq.mobile}</td>
+                        <td className="p-3">
+                          <div className="font-bold text-slate-800">{inq.serviceInterested}</div>
+                          <div className="text-[10px] text-amber-800 font-bold">{inq.packageChoice}</div>
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${
+                            inq.status === 'CONVERTED' ? 'bg-emerald-100 text-emerald-800' :
+                            inq.status === 'CONTACTED' ? 'bg-blue-100 text-blue-800' :
+                            inq.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                            'bg-amber-100 text-amber-900'
+                          }`}>
+                            {inq.status}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right">
+                          <select
+                            value={inq.status}
+                            onChange={(e) => handleUpdateInquiryStatus(inq.id, e.target.value as any)}
+                            className="text-[11px] p-1.5 rounded-lg border border-slate-300 font-bold bg-white"
+                          >
+                            <option value="NEW">NEW</option>
+                            <option value="CONTACTED">CONTACTED</option>
+                            <option value="CONVERTED">CONVERTED</option>
+                            <option value="REJECTED">REJECTED</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* TAB: PENDING APPROVALS */}
       {activeTab === 'approvals' && (
@@ -738,7 +1030,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
                         onClick={() => handleApprovePendingUpdate(shop.id)}
                         className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1"
                       >
-                        <Check className="w-4 h-4" /> Approve & Publish Links
+                        <Check className="w-4 h-4" /> Approve & Publish Changes
                       </button>
                       <button
                         onClick={() => handleRejectPendingUpdate(shop.id)}
@@ -752,37 +1044,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
               })}
             </div>
           )}
-        </div>
-      )}
-
-      {/* TAB: OVERVIEW */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-2">
-              <span className="text-xs text-slate-500 font-semibold">Total Net Revenue</span>
-              <div className="text-3xl font-black text-amber-600 font-mono">₹{grandTotalRevenue.toLocaleString('en-IN')}</div>
-              <p className="text-[11px] text-slate-500">Subscriptions + Ads + Standees</p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-2">
-              <span className="text-xs text-slate-500 font-semibold">Package Subscriptions</span>
-              <div className="text-3xl font-black text-emerald-700 font-mono">₹{subRevenue.toLocaleString('en-IN')}</div>
-              <p className="text-[11px] text-slate-500">{paidShops} Active Paid Shops</p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-2">
-              <span className="text-xs text-slate-500 font-semibold">Ad Booking Revenue</span>
-              <div className="text-3xl font-black text-blue-700 font-mono">₹{adRevenue.toLocaleString('en-IN')}</div>
-              <p className="text-[11px] text-slate-500">Homepage Banner Promotions</p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-2">
-              <span className="text-xs text-slate-500 font-semibold">Standee Hardware Sales</span>
-              <div className="text-3xl font-black text-purple-700 font-mono">₹{standeeRevenue.toLocaleString('en-IN')}</div>
-              <p className="text-[11px] text-slate-500">Physical Acrylic QR Boards</p>
-            </div>
-          </div>
         </div>
       )}
 
@@ -898,78 +1159,149 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
         </div>
       )}
 
-      {/* TAB: D COMPANY INFO MANAGEMENT */}
-      {activeTab === 'company' && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs max-w-xl space-y-4">
-          <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-            <Building2 className="w-5 h-5 text-amber-600" />
-            <span>Manage D Company Official Details</span>
+      {/* TAB: AD BOOSTS */}
+      {activeTab === 'ads' && (
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200">
+            <h3 className="text-sm font-bold text-slate-900">Ad Boost Requests & Homepage Banners</h3>
+            <p className="text-xs text-slate-500">Manage paid promotional ad requests submitted by shop owners</p>
           </div>
 
-          <form onSubmit={handleSaveCompanyDetails} className="space-y-4 text-xs">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Company Brand Name</label>
-              <input
-                type="text"
-                required
-                value={compName}
-                onChange={(e) => setCompName(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 font-bold"
-              />
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-900 text-white font-bold uppercase text-[10px]">
+                  <tr>
+                    <th className="p-3.5">Shop / Owner</th>
+                    <th className="p-3.5">Ad Package / Service</th>
+                    <th className="p-3.5">Amount</th>
+                    <th className="p-3.5">Requested Date</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {adRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-500">
+                        No ad boost requests submitted yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    adRequests.map((ad) => (
+                      <tr key={ad.id} className="hover:bg-slate-50">
+                        <td className="p-3.5">
+                          <div className="font-bold text-slate-900">{ad.shopName}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">Phone: {ad.ownerPhone}</div>
+                        </td>
+                        <td className="p-3.5 font-bold text-slate-800">{ad.type}</td>
+                        <td className="p-3.5 font-mono font-bold text-emerald-700">₹{ad.amount}</td>
+                        <td className="p-3.5 text-slate-500">{new Date(ad.requestedAt).toLocaleDateString()}</td>
+                        <td className="p-3.5">
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${
+                            ad.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
+                            ad.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-amber-100 text-amber-900'
+                          }`}>
+                            {ad.status}
+                          </span>
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleUpdateAdStatus(ad.id, 'Approved')}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px]"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleUpdateAdStatus(ad.id, 'Rejected')}
+                              className="px-2 py-1 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-700 font-bold rounded-lg text-[10px]"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Contact Phone Number *</label>
-                <input
-                  type="text"
-                  required
-                  value={compPhone}
-                  onChange={(e) => setCompPhone(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold"
-                />
-              </div>
+      {/* TAB: STANDEES */}
+      {activeTab === 'orders' && (
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200">
+            <h3 className="text-sm font-bold text-slate-900">Physical Counter Standee Hardware Orders</h3>
+            <p className="text-xs text-slate-500">Acrylic D-QR counter boards ordered by shopkeepers in Mehkar & Lonar</p>
+          </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Official Email *</label>
-                <input
-                  type="email"
-                  required
-                  value={compEmail}
-                  onChange={(e) => setCompEmail(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 font-bold"
-                />
-              </div>
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-900 text-white font-bold uppercase text-[10px]">
+                  <tr>
+                    <th className="p-3.5">Shop / Owner</th>
+                    <th className="p-3.5">Delivery Address</th>
+                    <th className="p-3.5">Material Option</th>
+                    <th className="p-3.5">Price</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {standeeOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-500">
+                        No standee hardware orders placed yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    standeeOrders.map((ord) => (
+                      <tr key={ord.id} className="hover:bg-slate-50">
+                        <td className="p-3.5">
+                          <div className="font-bold text-slate-900">{ord.shopName}</div>
+                          <div className="text-[10px] text-slate-500">Owner: {ord.ownerName} ({ord.ownerPhone})</div>
+                        </td>
+                        <td className="p-3.5 text-slate-700 max-w-xs">{ord.deliveryAddress}</td>
+                        <td className="p-3.5 font-bold text-slate-800">{ord.material}</td>
+                        <td className="p-3.5 font-mono font-bold text-purple-700">₹{ord.amount}</td>
+                        <td className="p-3.5">
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${
+                            ord.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800' :
+                            ord.status === 'Dispatched' ? 'bg-blue-100 text-blue-800' :
+                            'bg-amber-100 text-amber-900'
+                          }`}>
+                            {ord.status}
+                          </span>
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleUpdateStandeeStatus(ord.id, 'Dispatched')}
+                              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[10px]"
+                            >
+                              Dispatch
+                            </button>
+                            <button
+                              onClick={() => handleUpdateStandeeStatus(ord.id, 'Delivered')}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px]"
+                            >
+                              Delivered
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Office Address</label>
-              <input
-                type="text"
-                required
-                value={compAddr}
-                onChange={(e) => setCompAddr(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">About D Company / Mission</label>
-              <textarea
-                rows={4}
-                value={compAbout}
-                onChange={(e) => setCompAbout(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 leading-relaxed"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md"
-            >
-              Update D Company Details
-            </button>
-          </form>
+          </div>
         </div>
       )}
 
@@ -1062,6 +1394,140 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
         </div>
       )}
 
+      {/* TAB: SUBSCRIPTIONS & RENEWALS */}
+      {activeTab === 'subscriptions' && (
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200">
+            <h3 className="text-sm font-bold text-slate-900">Subscription Renewals & Merchant Packages</h3>
+            <p className="text-xs text-slate-500">Track package validity dates, amounts paid, and extend subscriptions for shop owners</p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-900 text-white font-bold uppercase text-[10px]">
+                  <tr>
+                    <th className="p-3.5">Shop Name</th>
+                    <th className="p-3.5">Owner Phone</th>
+                    <th className="p-3.5">Package Plan</th>
+                    <th className="p-3.5">Expiry Date</th>
+                    <th className="p-3.5">Amount Paid</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {businesses.map((shop) => (
+                    <tr key={shop.id} className="hover:bg-slate-50">
+                      <td className="p-3.5 font-bold text-slate-900">{shop.name} ({shop.region})</td>
+                      <td className="p-3.5 font-mono text-slate-800">{shop.ownerPhone}</td>
+                      <td className="p-3.5">
+                        <span className="font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md text-[10px]">
+                          {shop.subscription.planName}
+                        </span>
+                      </td>
+                      <td className="p-3.5 font-mono font-bold text-slate-700">{shop.subscription.expiryDate}</td>
+                      <td className="p-3.5 font-mono font-bold text-emerald-700">₹{shop.subscription.amountPaid || 0}</td>
+                      <td className="p-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleExtendShopValidity(shop.id)}
+                            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-[10px]"
+                          >
+                            +1 Month
+                          </button>
+                          <button
+                            onClick={() => sendWhatsAppRenewalReminder(shop)}
+                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded-lg text-[10px] flex items-center gap-1"
+                          >
+                            <Send className="w-3 h-3 text-emerald-600" />
+                            WhatsApp
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: D COMPANY INFO MANAGEMENT */}
+      {activeTab === 'company' && (
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs max-w-xl space-y-4">
+          <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+            <Building2 className="w-5 h-5 text-amber-600" />
+            <span>Manage D Company Official Details</span>
+          </div>
+
+          <form onSubmit={handleSaveCompanyDetails} className="space-y-4 text-xs">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Company Brand Name</label>
+              <input
+                type="text"
+                required
+                value={compName}
+                onChange={(e) => setCompName(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-300 font-bold"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Contact Phone Number *</label>
+                <input
+                  type="text"
+                  required
+                  value={compPhone}
+                  onChange={(e) => setCompPhone(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Official Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={compEmail}
+                  onChange={(e) => setCompEmail(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-bold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Office Address</label>
+              <input
+                type="text"
+                required
+                value={compAddr}
+                onChange={(e) => setCompAddr(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-300"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">About D Company / Mission</label>
+              <textarea
+                rows={4}
+                value={compAbout}
+                onChange={(e) => setCompAbout(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-300 leading-relaxed"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md"
+            >
+              Update D Company Details
+            </button>
+          </form>
+        </div>
+      )}
+
       {/* TAB: LEADS */}
       {activeTab === 'leads' && (
         <div className="space-y-4">
@@ -1137,42 +1603,284 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
         </div>
       )}
 
-      {/* TAB: SETTINGS */}
+      {/* TAB: SETTINGS & SECURITY CONTROL CENTER */}
       {activeTab === 'settings' && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs max-w-md space-y-4">
-          <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-            <Lock className="w-4 h-4 text-amber-600" />
-            <span>Encrypted Security Settings</span>
+        <div className="space-y-6">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 text-white rounded-3xl p-6 shadow-xl border border-amber-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-amber-400 font-extrabold text-sm">
+                <Shield className="w-5 h-5 text-amber-400" />
+                <span>अ‍ॅडमिन व दुकानदारांचे लॉगिन/पासवर्ड व्यवस्थापन (Security Control Center)</span>
+              </div>
+              <p className="text-xs text-slate-300">
+                येथून अ‍ॅडमिनचा पासवर्ड/मास्टर PIN बदलू शकता आणि सर्व दुकानदारांचे लॉगिन ID, फोन नंबर आणि शॉप PIN एडिट/रिसेट करू शकता.
+              </p>
+            </div>
+            <span className="bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs px-3 py-1.5 rounded-xl border border-emerald-500/30">
+              Encrypted Access Enabled
+            </span>
           </div>
 
+          {/* Success Banners */}
           {pinSuccess && (
-            <div className="bg-emerald-50 text-emerald-700 text-xs p-3 rounded-xl border border-emerald-200 font-medium">
-              {pinSuccess}
+            <div className="bg-emerald-50 text-emerald-800 text-xs p-4 rounded-2xl border border-emerald-300 font-bold flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span>{pinSuccess}</span>
+              </div>
             </div>
           )}
 
-          <form onSubmit={handleChangePin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Set New Master Security PIN
-              </label>
-              <input
-                type="password"
-                required
-                placeholder="Enter New PIN"
-                value={newPin}
-                onChange={(e) => setNewPin(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border border-slate-300"
-              />
+          {credSuccessMsg && (
+            <div className="bg-amber-50 text-amber-900 text-xs p-4 rounded-2xl border border-amber-300 font-bold flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span>{credSuccessMsg}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* COLUMN 1: ADMIN CREDENTIALS CARD */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md space-y-4">
+              <div className="flex items-center gap-2 text-slate-900 font-black text-sm pb-2 border-b border-slate-100">
+                <Lock className="w-4 h-4 text-amber-600" />
+                <span>अ‍ॅडमिन लॉगिन व सिक्युरिटी PIN (Admin Credentials)</span>
+              </div>
+
+              <form onSubmit={handleChangePin} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    अ‍ॅडमिन आयडी / ईमेल (Admin Email)
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="dcompany1410@gmail.com"
+                    value={adminEmailAcc}
+                    onChange={(e) => setAdminEmailAcc(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-semibold focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    नवीन मास्टर सिक्युरिटी PIN / पासवर्ड
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="उदा. 7777 किंवा नवीन PIN"
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    अ‍ॅडमिन पॅनेल उघडण्यासाठी हा पासवर्ड वापरला जातो.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all"
+                >
+                  अ‍ॅडमिन पिन व आयडी अपडेट करा
+                </button>
+              </form>
+
+              {/* Clear Demo Data Button */}
+              <div className="pt-4 border-t border-slate-100 space-y-2">
+                <span className="text-xs font-black text-rose-900 block">
+                  🧹 लाईव्ह जाण्यापूर्वी सॅम्पल डेटा रिसेट करा (Reset Demo Data):
+                </span>
+                <p className="text-[10px] text-slate-500">
+                  ॲप लाईव्ह करताना आधीचा सॅम्पल डेटा १-क्लिकमध्ये साफ करून ॲप नवीन (Fresh) करा.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleWipeDemoData}
+                  className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>सर्व सॅम्पल डेटा साफ करा (Clear Demo Data)</span>
+                </button>
+              </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
-            >
-              Update Security PIN
-            </button>
-          </form>
+            {/* COLUMN 2 & 3: SHOPKEEPER CREDENTIALS MANAGEMENT */}
+            <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-200 shadow-md space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <Store className="w-4 h-4 text-emerald-600" />
+                    <span>दुकानदारांचे लॉगिन आणि पासवर्ड लिस्ट ({businesses.length} Shops)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    कोणत्याही दुकानदाराचा लॉगिन मोबाईल नंबर किंवा ५-अंकी PIN येथून रिसेट व व्हॉट्सॲपवर पाठवू शकता.
+                  </p>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative max-w-xs w-full">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="दुकान किंवा फोन नंबर शोधा..."
+                    value={credSearch}
+                    onChange={(e) => setCredSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-300"
+                  />
+                </div>
+              </div>
+
+              {/* Shopkeeper Logins Table */}
+              <div className="overflow-x-auto max-h-[420px] overflow-y-auto rounded-2xl border border-slate-200">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-900 text-white font-bold uppercase text-[10px] sticky top-0 z-10">
+                    <tr>
+                      <th className="p-3">दुकान व मालकाचे नाव</th>
+                      <th className="p-3">लॉगिन आयडी (फोन)</th>
+                      <th className="p-3">शॉप PIN / पासवर्ड</th>
+                      <th className="p-3 text-right">कृती (Actions)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {businesses
+                      .filter((b) =>
+                        b.name.toLowerCase().includes(credSearch.toLowerCase()) ||
+                        b.ownerName.toLowerCase().includes(credSearch.toLowerCase()) ||
+                        b.ownerPhone.includes(credSearch) ||
+                        b.shopPin.includes(credSearch)
+                      )
+                      .map((shop) => (
+                        <tr key={shop.id} className="hover:bg-amber-50/50 transition-colors">
+                          <td className="p-3">
+                            <div className="font-bold text-slate-900">{shop.name}</div>
+                            <div className="text-[10px] text-slate-500">{shop.ownerName} ({shop.region})</div>
+                          </td>
+                          <td className="p-3 font-mono font-bold text-emerald-700">
+                            {shop.ownerPhone}
+                          </td>
+                          <td className="p-3">
+                            <span className="font-mono font-black text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-300 text-xs">
+                              🔑 {shop.shopPin}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right space-x-1">
+                            <button
+                              onClick={() => handleOpenEditCreds(shop)}
+                              className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-[11px] inline-flex items-center gap-1 shadow-xs"
+                            >
+                              <Edit3 className="w-3 h-3" /> एडिट / रिसेट PIN
+                            </button>
+                            <button
+                              onClick={() => sendShopkeeperCredentialsWhatsApp(shop)}
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-[11px] inline-flex items-center gap-1 shadow-xs"
+                              title="Send Login credentials on WhatsApp"
+                            >
+                              <Send className="w-3 h-3" /> WhatsApp
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          {/* EDIT SHOPKEEPER CREDENTIALS MODAL */}
+          {editingCredShop && (
+            <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      लॉगिन रिसेट: {editingCredShop.name}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {editingCredShop.ownerName} ({editingCredShop.region})
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setEditingCredShop(null)}
+                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-200"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveShopCredentials} className="space-y-4 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      मालकाचे नाव (Owner Name)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={credOwnerNameInput}
+                      onChange={(e) => setCredOwnerNameInput(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      लॉगिन मोबाईल नंबर (Owner Phone / User ID)
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={credPhoneInput}
+                      onChange={(e) => setCredPhoneInput(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold text-emerald-800"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-bold text-slate-700">
+                        नवीन शॉप PIN / पासवर्ड (Shop Login PIN)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAutoGeneratePin}
+                        className="text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md"
+                      >
+                        ⚡ ऑटो-जनरेट करा
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={credPinInput}
+                      onChange={(e) => setCredPinInput(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-extrabold text-slate-900 text-center tracking-widest text-base"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex items-center gap-2">
+                    <button
+                      type="submit"
+                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md"
+                    >
+                      लॉगिन सेव्ह करा
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingCredShop(null)}
+                      className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
+                    >
+                      रद्द करा
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1462,6 +2170,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
           </div>
         </div>
       )}
+
+      {/* GOOGLE MAPS AUTO IMPORTER MODAL */}
+      <ShopImporterModal
+        isOpen={isImporterOpen}
+        onClose={() => setIsImporterOpen(false)}
+        onSuccess={(newShop) => {
+          refreshData();
+          setIsImporterOpen(false);
+        }}
+      />
+
+      {/* AI MARKETING GENERATOR MODAL */}
+      <AIMarketingGeneratorModal
+        isOpen={isAiGenOpen}
+        onClose={() => setIsAiGenOpen(false)}
+        shop={aiGenShop}
+        onApplyOffer={(title, tag, desc) => {
+          if (aiGenShop) {
+            updateBusiness(aiGenShop.id, {
+              todaysOffer: {
+                ...aiGenShop.todaysOffer,
+                title,
+                discountTag: tag,
+                description: desc,
+              }
+            });
+            refreshData();
+          }
+        }}
+      />
+
+      {/* PRINTABLE QR STANDEE MODAL */}
+      <PrintableStandeeModal
+        isOpen={isStandeeModalOpen}
+        onClose={() => setIsStandeeModalOpen(false)}
+        shop={standeeShop}
+      />
+
+      {/* WHATSAPP CAMPAIGN BROADCAST MODAL */}
+      <WhatsAppCampaignCenterModal
+        isOpen={isWhatsAppCampaignOpen}
+        onClose={() => setIsWhatsAppCampaignOpen(false)}
+        shops={businesses}
+        customers={getCustomers()}
+        leads={leads}
+      />
 
     </div>
   );
