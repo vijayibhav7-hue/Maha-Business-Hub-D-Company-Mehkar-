@@ -1,0 +1,8 @@
+{
+  "name": "Maha Business Hub (D Company, Mehkar)",
+  "description": "Local business directory, daily offers, WhatsApp connects, and lead hub for Mehkar and Lonar by D Company.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
