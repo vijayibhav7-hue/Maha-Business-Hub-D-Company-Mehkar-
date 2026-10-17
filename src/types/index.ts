@@ -5,7 +5,44 @@ export type Category =
   | 'Hospitals' 
   | 'Coaching' 
   | 'Food' 
+  | 'Grocery'
+  | 'Hardware'
+  | 'Jewellery'
+  | 'Beauty'
+  | 'Auto'
+  | 'Furniture'
+  | 'Footwear'
+  | 'Electronics'
+  | 'Stationery'
+  | 'RealEstate'
   | 'Services';
+
+export interface CategoryInfo {
+  id: Category;
+  labelMr: string;
+  labelEn: string;
+  iconName: string;
+}
+
+export const ALL_CATEGORIES: CategoryInfo[] = [
+  { id: 'Agri', labelMr: 'कृषी व बियाणे (Agri)', labelEn: 'Agri & Seeds', iconName: 'Sprout' },
+  { id: 'Mobile', labelMr: 'मोबाईल व रीपेअरिंग (Mobile)', labelEn: 'Mobile & Repair', iconName: 'Smartphone' },
+  { id: 'Garments', labelMr: 'कपडे व साडी सेंटर (Garments)', labelEn: 'Garments & Sarees', iconName: 'Shirt' },
+  { id: 'Hospitals', labelMr: 'दवाखाने व मेडिकल (Hospitals)', labelEn: 'Hospitals & Medical', iconName: 'Stethoscope' },
+  { id: 'Coaching', labelMr: 'क्लासेस व एज्युकेशन (Coaching)', labelEn: 'Coaching & Education', iconName: 'GraduationCap' },
+  { id: 'Food', labelMr: 'हॉटेल, बेकरी व फूड (Food)', labelEn: 'Food, Hotel & Bakery', iconName: 'Utensils' },
+  { id: 'Grocery', labelMr: 'किराणा व जनरल स्टोअर (Grocery)', labelEn: 'Grocery & General Store', iconName: 'ShoppingBag' },
+  { id: 'Hardware', labelMr: 'हार्डवेअर व इलेक्ट्रिकल (Hardware)', labelEn: 'Hardware & Electrical', iconName: 'Wrench' },
+  { id: 'Jewellery', labelMr: 'ज्वेलर्स व सुवर्णकार (Jewellery)', labelEn: 'Jewellery & Gold', iconName: 'Gem' },
+  { id: 'Beauty', labelMr: 'ब्युटी पार्लर व सलून (Beauty)', labelEn: 'Beauty Parlour & Salon', iconName: 'Sparkles' },
+  { id: 'Auto', labelMr: 'ऑटोमोबाईल व गॅरेज (Auto)', labelEn: 'Auto & Garage', iconName: 'Car' },
+  { id: 'Furniture', labelMr: 'फर्निचर व होम डेकोर (Furniture)', labelEn: 'Furniture & Decor', iconName: 'Armchair' },
+  { id: 'Footwear', labelMr: 'फूटवेअर व चप्पल (Footwear)', labelEn: 'Footwear & Shoes', iconName: 'Footprints' },
+  { id: 'Electronics', labelMr: 'होम अप्लायन्सेस (Electronics)', labelEn: 'Electronics & Appliances', iconName: 'Tv' },
+  { id: 'Stationery', labelMr: 'स्टेशनरी व प्रिंटिंग (Stationery)', labelEn: 'Stationery & Printing', iconName: 'BookOpen' },
+  { id: 'RealEstate', labelMr: 'प्रॉपर्टी व रिअल इस्टेट (Real Estate)', labelEn: 'Real Estate & Property', iconName: 'Building' },
+  { id: 'Services', labelMr: 'सेवा व इतर व्यवसाय (Services)', labelEn: 'Services & Others', iconName: 'Briefcase' },
+];
 
 export type Region = string;
 
@@ -221,6 +258,16 @@ export interface AuditLog {
   details: string;
 }
 
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  durationMonths: number;
+  features: string[];
+  popular?: boolean;
+  isActive: boolean;
+}
+
 export interface AdminSettings {
   pinHash: string;
   adminEmail: string;
@@ -229,6 +276,7 @@ export interface AdminSettings {
   tickerText: string;
   isTickerActive: boolean;
   banners: BannerSlide[];
+  subscriptionPlans?: SubscriptionPlan[];
   // D Company Info
   companyName: string;
   companyPhone: string;

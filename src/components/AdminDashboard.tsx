@@ -33,9 +33,13 @@ import {
   QrCode,
   Eye,
   CheckCircle2,
-  BarChart2
+  BarChart2,
+  Loader2,
+  MapPin
 } from 'lucide-react';
-import { Business, Lead, AdminSettings, Category, PlanType, BannerSlide, AdRequest, StandeeOrder, AuditLog, SocialLinks, MerchantInquiry, CampaignStats } from '../types';
+import { Business, Lead, AdminSettings, Category, PlanType, BannerSlide, AdRequest, StandeeOrder, AuditLog, SocialLinks, MerchantInquiry, CampaignStats, ALL_CATEGORIES } from '../types';
+import { MAHARASHTRA_DISTRICTS_DATA, getTalukasByDistrict } from '../data/maharashtraData';
+import { parseShopFromLinkOrText } from '../utils/shopImporter';
 import { 
   verifyAdminPin, 
   getBusinesses, 
@@ -61,6 +65,14 @@ import {
   getCustomers,
   updateShopPin,
   updateShopCredentials,
+  getSubscriptionPlans,
+  addSubscriptionPlan,
+  updateSubscriptionPlan,
+  deleteSubscriptionPlan,
+  addAdBanner,
+  updateAdBanner,
+  deleteAdBanner,
+  deleteAdRequest,
   clearAllDemoData
 } from '../services/storage';
 import { useLanguage } from '../context/LanguageContext';
@@ -112,7 +124,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
   const [campaignStats, setCampaignStats] = useState<CampaignStats>(getCampaignStats());
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<'overview' | 'approvals' | 'shops' | 'ads' | 'orders' | 'banners' | 'ticker' | 'subscriptions' | 'leads' | 'logs' | 'company' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'approvals' | 'shops' | 'packages' | 'ads' | 'orders' | 'banners' | 'ticker' | 'subscriptions' | 'leads' | 'logs' | 'company' | 'settings'>('overview');
 
   // Search
   const [shopSearch, setShopSearch] = useState('');
@@ -126,7 +138,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
   const [formName, setFormName] = useState('');
   const [formTagline, setFormTagline] = useState('');
   const [formCategory, setFormCategory] = useState<Category>('Mobile');
-  const [formRegion, setFormRegion] = useState<'Mehkar' | 'Lonar'>('Mehkar');
+  const [formDistrict, setFormDistrict] = useState<string>('Buldhana');
+  const [formTaluka, setFormTaluka] = useState<string>('Mehkar');
+  const [formVillage, setFormVillage] = useState<string>('Mehkar');
+  const [formRegion, setFormRegion] = useState<string>('Mehkar');
   const [formAddress, setFormAddress] = useState('');
   const [formOwnerName, setFormOwnerName] = useState('');
   const [formOwnerPhone, setFormOwnerPhone] = useState('');
@@ -138,6 +153,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
   const [formOfferTag, setFormOfferTag] = useState('10% OFF');
   const [formOfferDesc, setFormOfferDesc] = useState('Get instant discount on your visit.');
   const [formShopPin, setFormShopPin] = useState('1234');
+
+  // Gmaps Auto Fetch in Admin Form
+  const [gmapsPasteInput, setGmapsPasteInput] = useState('');
+  const [isGmapsLoading, setIsGmapsLoading] = useState(false);
+  const [gmapsAutoNotice, setGmapsAutoNotice] = useState('');
 
   // Social Links Form
   const [formFbUrl, setFormFbUrl] = useState('');
@@ -175,6 +195,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
   const [credPinInput, setCredPinInput] = useState('');
   const [credOwnerNameInput, setCredOwnerNameInput] = useState('');
   const [credSuccessMsg, setCredSuccessMsg] = useState('');
+
+  // Subscription Packages Management State
+  const [plansList, setPlansList] = useState(getSubscriptionPlans());
+  const [isAddingPlan, setIsAddingPlan] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<import('../types').SubscriptionPlan | null>(null);
+  const [planNameInput, setPlanNameInput] = useState('');
+  const [planPriceInput, setPlanPriceInput] = useState(499);
+  const [planDurationInput, setPlanDurationInput] = useState(12);
+  const [planFeaturesInput, setPlanFeaturesInput] = useState('');
+  const [planPopularInput, setPlanPopularInput] = useState(false);
+  const [planActiveInput, setPlanActiveInput] = useState(true);
+
+  // Ad Banner Management State
+  const [editingBanner, setEditingBanner] = useState<BannerSlide | null>(null);
+  const [bannerAutoNotice, setBannerAutoNotice] = useState('');
 
   // New Feature Modals
   const [isImporterOpen, setIsImporterOpen] = useState(false);
@@ -264,11 +299,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
     }
   };
 
+  const handleAdminFetchGmapsDetails = async (inputStr?: string) => {
+    const textToParse = inputStr !== undefined ? inputStr : gmapsPasteInput;
+    if (!textToParse.trim()) return;
+
+    setIsGmapsLoading(true);
+    setGmapsAutoNotice('');
+
+    try {
+      const local = parseShopFromLinkOrText(textToParse);
+      if (local.name && local.name !== 'डिजिटल सुपर शॉप (मेहकर)') {
+        setFormName(local.name);
+      }
+      if (local.ownerPhone && local.ownerPhone !== '9607636444') {
+        setFormOwnerPhone(local.ownerPhone);
+      }
+      if (local.category) setFormCategory(local.category);
+      if (local.district) setFormDistrict(local.district);
+      if (local.taluka) setFormTaluka(local.taluka);
+      if (local.village) setFormVillage(local.village);
+      if (local.region) setFormRegion(local.region || local.taluka || 'Mehkar');
+      if (local.address) setFormAddress(local.address);
+      if (local.googleMapUrl) setFormMapUrl(local.googleMapUrl);
+
+      const urlMatch = textToParse.match(/(https?:\/\/[^\s]+)/);
+      if (urlMatch) {
+        const res = await fetch(`/api/expand-maps-link?url=${encodeURIComponent(urlMatch[1])}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            if (data.title) setFormName(data.title);
+            if (data.phone) setFormOwnerPhone(data.phone);
+            if (data.address) setFormAddress(data.address);
+            if (data.finalUrl) setFormMapUrl(data.finalUrl);
+            setGmapsAutoNotice(`✅ गूगल मॅप माहिती ऑटो-फेच झाली! (${data.title || 'नाव प्राप्त'})`);
+          } else {
+            setGmapsAutoNotice('गूगल मॅप लिंक जोडली गेली!');
+          }
+        }
+      } else {
+        setGmapsAutoNotice('✅ मेसेजवरून माहिती ऑटो-फेच झाली!');
+      }
+    } catch {
+      setGmapsAutoNotice('गूगल मॅप माहिती लोड झाली.');
+    } finally {
+      setIsGmapsLoading(false);
+      setTimeout(() => setGmapsAutoNotice(''), 6000);
+    }
+  };
+
   const openEditForm = (shop: Business) => {
     setEditingShop(shop);
     setFormName(shop.name);
     setFormTagline(shop.tagline);
     setFormCategory(shop.category);
+    setFormDistrict(shop.district || 'Buldhana');
+    setFormTaluka(shop.taluka || shop.region || 'Mehkar');
+    setFormVillage(shop.village || shop.region || 'Mehkar');
     setFormRegion(shop.region);
     setFormAddress(shop.address);
     setFormOwnerName(shop.ownerName);
@@ -297,6 +384,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
     setFormName('');
     setFormTagline('');
     setFormCategory('Mobile');
+    setFormDistrict('Buldhana');
+    setFormTaluka('Mehkar');
+    setFormVillage('Mehkar');
     setFormRegion('Mehkar');
     setFormAddress('');
     setFormOwnerName('');
@@ -314,6 +404,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
     setFormTwUrl('');
     setFormYtUrl('');
     setFormWebUrl('');
+    setGmapsPasteInput('');
+    setGmapsAutoNotice('');
     setIsAddingShop(false);
   };
 
@@ -340,17 +432,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
       googleBusiness: formMapUrl.trim(),
     };
 
+    const finalRegion = formTaluka || formDistrict || formRegion;
+    const finalAddress = formAddress.trim() || `मुख्य बाजार पेठ, ${formVillage}, ता. ${formTaluka}, जि. ${formDistrict}`;
+
     if (editingShop) {
       updateBusiness(editingShop.id, {
         name: formName,
         tagline: formTagline,
         category: formCategory,
-        region: formRegion,
-        address: formAddress,
+        region: finalRegion,
+        district: formDistrict,
+        taluka: formTaluka,
+        village: formVillage,
+        address: finalAddress,
         ownerName: formOwnerName,
         ownerPhone: formOwnerPhone,
         whatsappNumber: `91${formOwnerPhone.replace(/[^0-9]/g, '')}`,
-        googleMapUrl: formMapUrl || `https://maps.google.com/?q=${encodeURIComponent(formName + ' ' + formRegion)}`,
+        googleMapUrl: formMapUrl || `https://maps.google.com/?q=${encodeURIComponent(formName + ' ' + formVillage + ' ' + formDistrict)}`,
         image: formImage || 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=800&q=80',
         subscription: {
           status: isPaid ? 'Paid' : 'Free',
@@ -372,14 +470,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
     } else {
       addBusiness({
         name: formName,
-        tagline: formTagline || 'Quality Products & Services in ' + formRegion,
+        tagline: formTagline || 'Quality Products & Services in ' + finalRegion,
         category: formCategory,
-        region: formRegion,
-        address: formAddress,
+        region: finalRegion,
+        district: formDistrict,
+        taluka: formTaluka,
+        village: formVillage,
+        address: finalAddress,
         ownerName: formOwnerName,
         ownerPhone: formOwnerPhone,
         whatsappNumber: `91${formOwnerPhone.replace(/[^0-9]/g, '')}`,
-        googleMapUrl: formMapUrl || `https://maps.google.com/?q=${encodeURIComponent(formName + ' ' + formRegion)}`,
+        googleMapUrl: formMapUrl || `https://maps.google.com/?q=${encodeURIComponent(formName + ' ' + formVillage + ' ' + formDistrict)}`,
         image: formImage || 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=800&q=80',
         subscription: {
           status: isPaid ? 'Paid' : 'Free',
@@ -423,6 +524,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
 
   const handleUpdateAdStatus = (id: string, status: AdRequest['status']) => {
     updateAdRequestStatus(id, status);
+    if (status === 'Approved') {
+      const ad = adRequests.find((a) => a.id === id);
+      if (ad) {
+        const shop = businesses.find((b) => b.id === ad.shopId || b.name === ad.shopName);
+        if (shop) {
+          addAdBanner({
+            title: `${shop.name} - ${ad.type}`,
+            subtitle: shop.todaysOffer.title || 'विशेष सवलत व ऑफर उपलब्ध',
+            discountBadge: shop.todaysOffer.discountTag || 'BOOSTED AD',
+            imageUrl: shop.image,
+            targetShopId: shop.id,
+            active: true,
+          });
+        }
+      }
+    }
     refreshData();
   };
 
@@ -534,28 +651,160 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
     }
   };
 
+  // Subscription Plans Handlers
+  const handleOpenAddPlan = () => {
+    setEditingPlan(null);
+    setPlanNameInput('');
+    setPlanPriceInput(499);
+    setPlanDurationInput(12);
+    setPlanFeaturesInput('D-QR Counter Standee, Verified Badge, Unlimited Leads');
+    setPlanPopularInput(false);
+    setPlanActiveInput(true);
+    setIsAddingPlan(true);
+  };
+
+  const handleOpenEditPlan = (plan: import('../types').SubscriptionPlan) => {
+    setEditingPlan(plan);
+    setPlanNameInput(plan.name);
+    setPlanPriceInput(plan.price);
+    setPlanDurationInput(plan.durationMonths);
+    setPlanFeaturesInput((plan.features || []).join(', '));
+    setPlanPopularInput(plan.popular || false);
+    setPlanActiveInput(plan.isActive);
+    setIsAddingPlan(true);
+  };
+
+  const handleSavePlan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!planNameInput.trim()) {
+      alert('Please enter plan name');
+      return;
+    }
+    const featuresList = planFeaturesInput
+      .split(',')
+      .map((f) => f.trim())
+      .filter((f) => f.length > 0);
+
+    if (editingPlan) {
+      updateSubscriptionPlan(editingPlan.id, {
+        name: planNameInput.trim(),
+        price: Number(planPriceInput),
+        durationMonths: Number(planDurationInput),
+        features: featuresList,
+        popular: planPopularInput,
+        isActive: planActiveInput,
+      });
+    } else {
+      addSubscriptionPlan({
+        name: planNameInput.trim(),
+        price: Number(planPriceInput),
+        durationMonths: Number(planDurationInput),
+        features: featuresList,
+        popular: planPopularInput,
+        isActive: planActiveInput,
+      });
+    }
+
+    setPlansList(getSubscriptionPlans());
+    setSettings(getAdminSettings());
+    setIsAddingPlan(false);
+    setEditingPlan(null);
+  };
+
+  const handleDeletePlan = (planId: string) => {
+    if (window.confirm('Are you sure you want to delete this subscription plan?')) {
+      deleteSubscriptionPlan(planId);
+      setPlansList(getSubscriptionPlans());
+      setSettings(getAdminSettings());
+    }
+  };
+
+  const handleTogglePlanActive = (plan: import('../types').SubscriptionPlan) => {
+    updateSubscriptionPlan(plan.id, { isActive: !plan.isActive });
+    setPlansList(getSubscriptionPlans());
+    setSettings(getAdminSettings());
+  };
+
+  // Banner Handlers
+  const handleSelectShopForBanner = (shopId: string) => {
+    setBannerShopId(shopId);
+    if (!shopId) {
+      setBannerAutoNotice('मॅन्युअल (Manual) माहिती भरण्याचा पर्याय निवडला आहे.');
+      setTimeout(() => setBannerAutoNotice(''), 3000);
+      return;
+    }
+
+    const shop = businesses.find((b) => b.id === shopId);
+    if (shop) {
+      const offerTitle = shop.todaysOffer?.title ? ` - ${shop.todaysOffer.title}` : '';
+      setBannerTitle(`${shop.name}${offerTitle}`);
+      setBannerSub(shop.tagline ? `${shop.tagline} | ${shop.address}` : shop.address);
+      setBannerBadge(shop.todaysOffer?.discountTag || 'SPECIAL DEAL');
+      setBannerImg(shop.image);
+      setBannerAutoNotice(`✅ "${shop.name}" या जतन केलेल्या व्यवसायाची माहिती, फोटो व ऑफर जाहिरातीत आपोआप भरली गेली!`);
+      setTimeout(() => setBannerAutoNotice(''), 6000);
+    }
+  };
+
+  const handleOpenAddBanner = () => {
+    setEditingBanner(null);
+    setBannerTitle('');
+    setBannerSub('');
+    setBannerBadge('SPECIAL DEAL');
+    setBannerImg('');
+    setBannerShopId('');
+    setBannerAutoNotice('');
+    setIsAddingBanner(true);
+  };
+
+  const handleOpenEditBanner = (slide: BannerSlide) => {
+    setEditingBanner(slide);
+    setBannerTitle(slide.title);
+    setBannerSub(slide.subtitle);
+    setBannerBadge(slide.discountBadge);
+    setBannerImg(slide.imageUrl);
+    setBannerShopId(slide.targetShopId || '');
+    setBannerAutoNotice('');
+    setIsAddingBanner(true);
+  };
+
   const handleSaveBanner = (e: React.FormEvent) => {
     e.preventDefault();
-    const newSlide: BannerSlide = {
-      id: `banner-${Date.now()}`,
-      title: bannerTitle,
-      subtitle: bannerSub,
-      discountBadge: bannerBadge,
-      imageUrl: bannerImg || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80',
-      targetShopId: bannerShopId || undefined,
-      active: true,
-    };
+    if (!bannerTitle.trim()) {
+      alert('Please enter banner title');
+      return;
+    }
 
-    const currentBanners = settings.banners || [];
-    updateAdminSettings({ banners: [newSlide, ...currentBanners] });
+    if (editingBanner) {
+      updateAdBanner(editingBanner.id, {
+        title: bannerTitle.trim(),
+        subtitle: bannerSub.trim(),
+        discountBadge: bannerBadge.trim(),
+        imageUrl: bannerImg || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80',
+        targetShopId: bannerShopId || undefined,
+        active: true,
+      });
+    } else {
+      addAdBanner({
+        title: bannerTitle.trim(),
+        subtitle: bannerSub.trim(),
+        discountBadge: bannerBadge.trim(),
+        imageUrl: bannerImg || 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&w=1200&q=80',
+        targetShopId: bannerShopId || undefined,
+        active: true,
+      });
+    }
+
     setSettings(getAdminSettings());
     setIsAddingBanner(false);
+    setEditingBanner(null);
   };
 
   const handleDeleteBanner = (id: string) => {
-    const updated = (settings.banners || []).filter((b) => b.id !== id);
-    updateAdminSettings({ banners: updated });
-    setSettings(getAdminSettings());
+    if (window.confirm('Delete this banner ad?')) {
+      deleteAdBanner(id);
+      setSettings(getAdminSettings());
+    }
   };
 
   const handleSaveTicker = (e: React.FormEvent) => {
@@ -797,6 +1046,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
             { id: 'overview', label: 'Overview', icon: TrendingUp },
             { id: 'approvals', label: `Pending (${pendingApprovalShops.length})`, icon: AlertCircle },
             { id: 'shops', label: `Shops (${totalShops})`, icon: Store },
+            { id: 'packages', label: `Paid Packages (${plansList.length})`, icon: CreditCard },
             { id: 'ads', label: `Ad Boosts (${adRequests.filter(a => a.status === 'Pending').length})`, icon: Megaphone },
             { id: 'orders', label: `Standees (${standeeOrders.length})`, icon: ShoppingBag },
             { id: 'banners', label: `Carousel (${(settings.banners || []).length})`, icon: ImageIcon },
@@ -1159,6 +1409,106 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
         </div>
       )}
 
+      {/* TAB: PAID SUBSCRIPTION PACKAGES MANAGEMENT (ADD, EDIT, DELETE PLANS) */}
+      {activeTab === 'packages' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div>
+              <div className="flex items-center gap-2 text-slate-900 font-extrabold text-base">
+                <CreditCard className="w-5 h-5 text-amber-600" />
+                <span>पेड सबस्क्रिप्शन प्लॅन नियंत्रण (Subscription Packages Control)</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                नवीन सबस्क्रिप्शन प्लॅन जोडा, किंमत बदला किंवा वैशिष्ट्ये संपादित करा (Add, Edit & Delete Subscription Plans)
+              </p>
+            </div>
+
+            <button
+              onClick={handleOpenAddPlan}
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-2 shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>नवीन प्लॅन जोडा (Add New Plan)</span>
+            </button>
+          </div>
+
+          {/* Plans Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {plansList.map((plan) => (
+              <div
+                key={plan.id}
+                className={`bg-white rounded-3xl p-5 border shadow-xs space-y-4 flex flex-col justify-between relative overflow-hidden transition-all ${
+                  plan.popular ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200'
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl shadow-xs">
+                    ★ BEST SELLER
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                      plan.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {plan.isActive ? '● ACTIVE PLAN' : '○ INACTIVE'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-lg font-black text-slate-900 tracking-tight">{plan.name}</h4>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-2xl font-black text-amber-700 font-mono">₹{plan.price}</span>
+                      <span className="text-xs text-slate-500 font-bold">/ {plan.durationMonths} Months</span>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-2 border-t border-slate-100 pt-3 text-xs">
+                    {(plan.features || []).map((feat, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-slate-700 font-medium">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => handleTogglePlanActive(plan)}
+                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${
+                      plan.isActive
+                        ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                    }`}
+                  >
+                    {plan.isActive ? 'Disable' : 'Enable'}
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleOpenEditPlan(plan)}
+                      className="p-2 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl font-bold transition-colors"
+                      title="Edit Subscription Plan"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeletePlan(plan.id)}
+                      className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+                      title="Delete Plan"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* TAB: AD BOOSTS */}
       {activeTab === 'ads' && (
         <div className="space-y-4">
@@ -1305,44 +1655,63 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
         </div>
       )}
 
-      {/* TAB: BANNERS */}
+      {/* TAB: BANNERS & AD PROMOTIONS */}
       {activeTab === 'banners' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Homepage Carousel Banners</h3>
-              <p className="text-xs text-slate-500">Control promotional banners displayed at the top of the homepage</p>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-amber-600" />
+                <span>सर्व जाहिराती व होमपेज बॅनर्स (Homepage Carousel Ads & Banners)</span>
+              </h3>
+              <p className="text-xs text-slate-500">होमपेजच्या मुख्य कॅरोसेलवर दाखवल्या जाणाऱ्या सर्व डिजिटल जाहिराती जोडा, संपादित करा किंवा हटवा</p>
             </div>
 
             <button
-              onClick={() => setIsAddingBanner(true)}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5"
+              onClick={handleOpenAddBanner}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Banner Slide</span>
+              <span>नवीन बॅनर्स जाहिरात जोडा (Add Banner)</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(settings.banners || []).map((slide) => (
-              <div key={slide.id} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3 relative overflow-hidden">
-                <img src={slide.imageUrl} alt={slide.title} className="w-full h-32 object-cover rounded-xl" />
+              <div key={slide.id} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3 relative overflow-hidden flex flex-col justify-between">
                 <div>
-                  <span className="bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-md">
-                    {slide.discountBadge}
-                  </span>
-                  <h4 className="font-bold text-slate-900 text-sm mt-1">{slide.title}</h4>
-                  <p className="text-xs text-slate-600 line-clamp-2">{slide.subtitle}</p>
+                  <img src={slide.imageUrl} alt={slide.title} className="w-full h-36 object-cover rounded-xl" />
+                  <div className="mt-3 space-y-1">
+                    <span className="bg-amber-100 text-amber-900 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md">
+                      {slide.discountBadge}
+                    </span>
+                    <h4 className="font-extrabold text-slate-900 text-sm">{slide.title}</h4>
+                    <p className="text-xs text-slate-600 line-clamp-2">{slide.subtitle}</p>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                  <span className="text-emerald-700 font-bold">● Active Banner</span>
-                  <button
-                    onClick={() => handleDeleteBanner(slide.id)}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+                  <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px]">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Active Digital Ad</span>
+                  </span>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleOpenEditBanner(slide)}
+                      className="px-2.5 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-100 font-bold text-[11px] rounded-lg border border-amber-200 flex items-center gap-1"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteBanner(slide.id)}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete Banner Ad"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1794,90 +2163,93 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
 
           {/* EDIT SHOPKEEPER CREDENTIALS MODAL */}
           {editingCredShop && (
-            <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-              <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 font-marathi overflow-hidden">
+              <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
                   <div>
-                    <h3 className="text-base font-black text-slate-900">
+                    <h3 className="text-sm sm:text-base font-black text-slate-900">
                       लॉगिन रिसेट: {editingCredShop.name}
                     </h3>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-[11px] text-slate-500">
                       {editingCredShop.ownerName} ({editingCredShop.region})
                     </p>
                   </div>
                   <button
                     onClick={() => setEditingCredShop(null)}
-                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-200"
+                    className="w-8 h-8 rounded-full bg-slate-200/80 flex items-center justify-center text-slate-800 font-bold hover:bg-slate-300 shrink-0"
+                    title="बंद करा"
                   >
                     ✕
                   </button>
                 </div>
 
-                <form onSubmit={handleSaveShopCredentials} className="space-y-4 text-xs">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      मालकाचे नाव (Owner Name)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={credOwnerNameInput}
-                      onChange={(e) => setCredOwnerNameInput(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-slate-300 font-medium"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      लॉगिन मोबाईल नंबर (Owner Phone / User ID)
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={credPhoneInput}
-                      onChange={(e) => setCredPhoneInput(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold text-emerald-800"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="font-bold text-slate-700">
-                        नवीन शॉप PIN / पासवर्ड (Shop Login PIN)
+                <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 max-w-full">
+                  <form onSubmit={handleSaveShopCredentials} className="space-y-4 text-xs">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        मालकाचे नाव (Owner Name)
                       </label>
+                      <input
+                        type="text"
+                        required
+                        value={credOwnerNameInput}
+                        onChange={(e) => setCredOwnerNameInput(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border border-slate-300 font-medium text-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        लॉगिन मोबाईल नंबर (Owner Phone / User ID)
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={credPhoneInput}
+                        onChange={(e) => setCredPhoneInput(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold text-emerald-800"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold text-slate-700">
+                          नवीन शॉप PIN / पासवर्ड (Shop Login PIN)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleAutoGeneratePin}
+                          className="text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md"
+                        >
+                          ⚡ ऑटो-जनरेट करा
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={credPinInput}
+                        onChange={(e) => setCredPinInput(e.target.value)}
+                        className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-extrabold text-slate-900 text-center tracking-widest text-base"
+                      />
+                    </div>
+
+                    <div className="pt-2 flex items-center gap-2">
+                      <button
+                        type="submit"
+                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all active:scale-95"
+                      >
+                        लॉगिन सेव्ह करा
+                      </button>
                       <button
                         type="button"
-                        onClick={handleAutoGeneratePin}
-                        className="text-[10px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md"
+                        onClick={() => setEditingCredShop(null)}
+                        className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
                       >
-                        ⚡ ऑटो-जनरेट करा
+                        रद्द करा
                       </button>
                     </div>
-                    <input
-                      type="text"
-                      required
-                      value={credPinInput}
-                      onChange={(e) => setCredPinInput(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-extrabold text-slate-900 text-center tracking-widest text-base"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex items-center gap-2">
-                    <button
-                      type="submit"
-                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md"
-                    >
-                      लॉगिन सेव्ह करा
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingCredShop(null)}
-                      className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
-                    >
-                      रद्द करा
-                    </button>
-                  </div>
-                </form>
+                  </form>
+                </div>
               </div>
             </div>
           )}
@@ -1886,34 +2258,87 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
 
       {/* ADD / EDIT SHOP MODAL */}
       {isAddingShop && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 my-8 space-y-4">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 font-marathi overflow-hidden">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[92vh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
             
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-lg font-black text-slate-900">
-                {editingShop ? 'Edit Business Listing' : 'Add New Local Business'}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
+              <h3 className="text-base sm:text-lg font-black text-slate-900">
+                {editingShop ? 'दुकानाची माहिती एडिट करा' : 'नवीन स्थानिक दुकान जोडा (Add Shop)'}
               </h3>
-              <button onClick={resetForm} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+              <button onClick={resetForm} className="w-9 h-9 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center text-slate-800 font-black shrink-0 transition-colors" title="बंद करा">
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveShop} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveShop} className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 text-xs max-w-full">
+              
+              {/* Google Maps Link Auto-Fetch Box */}
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+                <label className="block font-bold text-slate-800 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                    <span>गूगल मॅपची लिंक पेस्ट करा (Paste Google Maps Link):</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-100 px-2 py-0.5 rounded-md">
+                    1-Click Auto Expansion
+                  </span>
+                </label>
+                
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://maps.app.goo.gl/..."
+                    value={gmapsPasteInput}
+                    onChange={(e) => {
+                      setGmapsPasteInput(e.target.value);
+                      if (e.target.value.includes('http')) {
+                        handleAdminFetchGmapsDetails(e.target.value);
+                      }
+                    }}
+                    className="flex-1 p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-[11px] focus:ring-2 focus:ring-emerald-500 text-slate-900 font-bold"
+                  />
+                  <button
+                    type="button"
+                    disabled={isGmapsLoading}
+                    onClick={() => handleAdminFetchGmapsDetails()}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md shrink-0 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {isGmapsLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                        <span>फेच होत आहे...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        <span>माहिती फेच करा</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {gmapsAutoNotice && (
+                  <div className="text-[11px] text-emerald-800 font-bold bg-emerald-50 p-2 rounded-xl border border-emerald-200">
+                    {gmapsAutoNotice}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Business Name *</label>
+                  <label className="block font-bold text-slate-700 mb-1">दुकानाचा नाव (Business Name) *</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Balaji Mobiles"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-300"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-bold text-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Tagline</label>
+                  <label className="block font-bold text-slate-700 mb-1">टॅगलाईन (Tagline)</label>
                   <input
                     type="text"
                     placeholder="e.g. Sales, Service & Accessories"
@@ -1926,28 +2351,99 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Category *</label>
+                  <label className="block font-bold text-slate-700 mb-1">कॅटेगरी (Category) *</label>
                   <select
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value as Category)}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-bold"
                   >
-                    {['Agri', 'Mobile', 'Garments', 'Hospitals', 'Coaching', 'Food', 'Services'].map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                    {ALL_CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id}>{c.labelMr}</option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Region *</label>
+                  <label className="block font-bold text-slate-700 mb-1">जिल्हा (District - महाराष्ट्र) *</label>
                   <select
-                    value={formRegion}
-                    onChange={(e) => setFormRegion(e.target.value as any)}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
+                    value={formDistrict}
+                    onChange={(e) => {
+                      const d = e.target.value;
+                      setFormDistrict(d);
+                      const talukas = getTalukasByDistrict(d);
+                      if (talukas.length > 0) {
+                        setFormTaluka(talukas[0].name);
+                        setFormRegion(talukas[0].name);
+                        setFormVillage(talukas[0].name);
+                      }
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-bold text-slate-900"
                   >
-                    <option value="Mehkar">Mehkar</option>
-                    <option value="Lonar">Lonar</option>
+                    {MAHARASHTRA_DISTRICTS_DATA.map((d) => (
+                      <option key={d.name} value={d.name}>
+                        {d.nameMr} ({d.name})
+                      </option>
+                    ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">तालुका (Taluka) *</label>
+                  <select
+                    value={formTaluka}
+                    onChange={(e) => {
+                      const t = e.target.value;
+                      setFormTaluka(t);
+                      setFormRegion(t);
+                      setFormVillage(t);
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-bold text-slate-900"
+                  >
+                    {getTalukasByDistrict(formDistrict).map((t) => (
+                      <option key={t.name} value={t.name}>
+                        {t.nameMr} ({t.name})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">गाव / शहर (Village/City) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="उदा. मेहकर / लोणार / सुपे"
+                    value={formVillage}
+                    onChange={(e) => setFormVillage(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-bold"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1">दुकानाचा पूर्ण पत्ता (Full Address) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="उदा. जुन्या बस स्टँडजवळ, मेन रोड"
+                    value={formAddress}
+                    onChange={(e) => setFormAddress(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">गूगल मॅप लिंक (Google Maps URL)</label>
+                  <input
+                    type="text"
+                    placeholder="https://maps.google.com/..."
+                    value={formMapUrl}
+                    onChange={(e) => setFormMapUrl(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-[11px]"
+                  />
                 </div>
 
                 <div>
@@ -2096,61 +2592,122 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
 
       {/* ADD BANNER MODAL */}
       {isAddingBanner && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-base font-bold text-slate-900">Add Carousel Banner Slide</h3>
-              <button onClick={() => setIsAddingBanner(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">✕</button>
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 font-marathi overflow-hidden">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2 pr-2">
+                <ImageIcon className="w-5 h-5 text-amber-600 shrink-0" />
+                <span>{editingBanner ? 'डिजिटल जाहिरात एडिट करा' : 'नवीन डिजिटल जाहिरात जोडा (Add Banner)'}</span>
+              </h3>
+              <button onClick={() => { setIsAddingBanner(false); setEditingBanner(null); }} className="w-8 h-8 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center font-bold text-slate-800 shrink-0" title="बंद करा">✕</button>
             </div>
 
-            <form onSubmit={handleSaveBanner} className="space-y-3 text-xs">
+            <form onSubmit={handleSaveBanner} className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3.5 text-xs max-w-full">
+              
+              {/* Select Saved Business Dropdown or Manual Mode */}
+              <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 space-y-2">
+                <label className="block font-bold text-amber-950 text-xs flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Store className="w-4 h-4 text-amber-600" />
+                    <span>जतन केलेला व्यवसाय निवडा (Select Saved Business):</span>
+                  </span>
+                  <span className="text-[10px] text-amber-900 font-extrabold bg-amber-200/80 px-2.5 py-0.5 rounded-md">
+                    Auto-Fill Banner Details
+                  </span>
+                </label>
+
+                <select
+                  value={bannerShopId}
+                  onChange={(e) => handleSelectShopForBanner(e.target.value)}
+                  className="w-full p-2.5 bg-white border border-amber-300 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 text-xs"
+                >
+                  <option value="">✏️ -- स्वतः नवीन/मॅन्युअल माहिती भरा (Manual Custom Ad) --</option>
+                  {businesses.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      🏪 {b.name} ({b.region} - {b.category})
+                    </option>
+                  ))}
+                </select>
+
+                {bannerAutoNotice && (
+                  <div className="text-[11px] text-emerald-800 font-bold bg-emerald-100 p-2.5 rounded-xl border border-emerald-300 flex items-center gap-1.5 shadow-xs">
+                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 animate-pulse" />
+                    <span>{bannerAutoNotice}</span>
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-500">
+                  टीप: जतन केलेला व्यवसाय निवडताच त्याचे नाव, ऑफर, पत्ता व फोटो जाहितीमध्ये ऑटो-फिल होईल. आवश्यक असल्यास खाली तुम्ही मॅन्युअली एडिटही करू शकता.
+                </p>
+              </div>
+
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Banner Title *</label>
+                <label className="block font-bold text-slate-800 mb-1">१. जाहिरात / हेडलाईन (Headline) *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Navratri Special Mobile Fest"
+                  placeholder="उदा. विशेष १०% सूट / दिवाळी धमाका ऑफर"
                   value={bannerTitle}
                   onChange={(e) => setBannerTitle(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300"
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-extrabold text-slate-900 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Subtitle / Details</label>
+                <label className="block font-bold text-slate-800 mb-1">२. उपशीर्षक / तपशील (Subtitle / Details)</label>
                 <input
                   type="text"
-                  placeholder="e.g. Free tempered glass with all 5G phones"
+                  placeholder="उदा. सर्वांत स्वस्त दरात मोबाईल आणि मोफत ॲक्सेसरीज"
                   value={bannerSub}
                   onChange={(e) => setBannerSub(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300"
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-medium"
                 />
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Badge Tag</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 20% OFF / SPECIAL OFFER"
-                  value={bannerBadge}
-                  onChange={(e) => setBannerBadge(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">३. ऑफर डिस्काउंट टॅग</label>
+                  <input
+                    type="text"
+                    placeholder="उदा. 20% OFF / HOT DEAL"
+                    value={bannerBadge}
+                    onChange={(e) => setBannerBadge(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-extrabold text-amber-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">४. दुकान लिंक करा (Target Shop)</label>
+                  <select
+                    value={bannerShopId}
+                    onChange={(e) => setBannerShopId(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-bold bg-white text-xs"
+                  >
+                    <option value="">कोणतेही दुकान नाही (General Ad)</option>
+                    {businesses.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.region})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Banner Photo File</label>
-                <div className="flex items-center gap-2">
+                <label className="block font-bold text-slate-800 mb-1">५. जाहिरातीचा फोटो अपलोड करा (Upload Photo)</label>
+                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                  {bannerImg && (
+                    <img src={bannerImg} alt="Preview" className="w-14 h-14 object-cover rounded-xl border shrink-0 bg-slate-200" />
+                  )}
                   <label className="px-3.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer inline-flex items-center gap-2">
                     <Upload className="w-4 h-4 text-amber-400" />
-                    <span>Upload Banner Image</span>
+                    <span>फोटो निवडा (Upload Banner)</span>
                     <input type="file" accept="image/*" onChange={handleBannerPhotoUpload} className="hidden" />
                   </label>
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Or Direct Image URL</label>
+                <label className="block font-bold text-slate-800 mb-1">किंवा डायरेक्ट फोटो URL</label>
                 <input
                   type="url"
                   placeholder="https://images.unsplash.com/..."
@@ -2162,9 +2719,116 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToDirector
 
               <button
                 type="submit"
-                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md"
+                className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-95"
               >
-                Add Banner Slide
+                {editingBanner ? 'जाहिरात / बॅनर अपडेट करा (Update Banner Ad)' : 'नवीन जाहिरात सेव्ह व प्रसिद्ध करा (Publish Banner Ad)'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / EDIT SUBSCRIPTION PLAN MODAL */}
+      {isAddingPlan && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 font-marathi overflow-hidden">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2 pr-2">
+                <CreditCard className="w-5 h-5 text-amber-600 shrink-0" />
+                <span>{editingPlan ? 'सबस्क्रिप्शन प्लॅन एडिट करा' : 'नवीन सबस्क्रिप्शन प्लॅन जोडा (Add Plan)'}</span>
+              </h3>
+              <button onClick={() => setIsAddingPlan(false)} className="w-8 h-8 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center font-bold text-slate-800 shrink-0" title="बंद करा">✕</button>
+            </div>
+
+            <form onSubmit={handleSavePlan} className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3.5 text-xs max-w-full">
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">१. प्लॅनचे नाव (Plan Title) *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="उदा. Silver ₹499 / Gold ₹999 / Diamond Plan"
+                  value={planNameInput}
+                  onChange={(e) => setPlanNameInput(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-extrabold text-slate-900 text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">२. किंमत (Price ₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    placeholder="499"
+                    value={planPriceInput}
+                    onChange={(e) => setPlanPriceInput(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold text-amber-800 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">३. कालावधी (Months)</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={planDurationInput}
+                    onChange={(e) => setPlanDurationInput(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  ४. प्लॅनची वैशिष्ट्ये (Features - स्वल्पविराम / Comma Separated)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="उदा. D-QR Counter Standee Board, Verified Shop Badge, Unlimited Customer Leads"
+                  value={planFeaturesInput}
+                  onChange={(e) => setPlanFeaturesInput(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-medium"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  प्रत्येक वैशिष्ट्य स्वल्पविराम (comma) देऊन लिहा.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="planPopularCheck"
+                    checked={planPopularInput}
+                    onChange={(e) => setPlanPopularInput(e.target.checked)}
+                    className="w-4 h-4 text-amber-600 rounded"
+                  />
+                  <label htmlFor="planPopularCheck" className="font-bold text-slate-800 text-xs cursor-pointer">
+                    ★ Best Seller टॅग लावा
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="planActiveCheck"
+                    checked={planActiveInput}
+                    onChange={(e) => setPlanActiveInput(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded"
+                  />
+                  <label htmlFor="planActiveCheck" className="font-bold text-slate-800 text-xs cursor-pointer">
+                    सक्रिय (Active)
+                  </label>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all active:scale-95"
+              >
+                {editingPlan ? 'सबस्क्रिप्शन प्लॅन अपडेट करा (Update Plan)' : 'नवीन प्लॅन सेव्ह व प्रसिद्ध करा (Save Plan)'}
               </button>
             </form>
           </div>

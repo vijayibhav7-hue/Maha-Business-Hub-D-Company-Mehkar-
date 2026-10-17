@@ -8,7 +8,16 @@ import {
   Utensils, 
   Wrench, 
   LayoutGrid,
-  MapPin
+  MapPin,
+  ShoppingBag,
+  Gem,
+  Sparkles,
+  Car,
+  Armchair,
+  Footprints,
+  Tv,
+  BookOpen,
+  Building
 } from 'lucide-react';
 import { Category, Region } from '../types';
 import { MAHARASHTRA_DISTRICTS_DATA } from '../data/maharashtraData';
@@ -32,14 +41,24 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
   const { t } = useLanguage();
 
   const CATEGORY_ITEMS: { label: Category | 'All'; i18nKey: string; defaultName: string; icon: React.FC<{ className?: string }> }[] = [
-    { label: 'All', i18nKey: 'catAll', defaultName: 'All Categories', icon: LayoutGrid },
-    { label: 'Agri', i18nKey: 'catAgri', defaultName: 'Agri & Fertilizers', icon: Sprout },
-    { label: 'Mobile', i18nKey: 'catMobile', defaultName: 'Mobile & Electronics', icon: Smartphone },
-    { label: 'Garments', i18nKey: 'catGarments', defaultName: 'Garments & Fashion', icon: Shirt },
-    { label: 'Hospitals', i18nKey: 'catHospitals', defaultName: 'Hospitals & Clinics', icon: HeartPulse },
-    { label: 'Coaching', i18nKey: 'catCoaching', defaultName: 'Coaching Classes', icon: GraduationCap },
-    { label: 'Food', i18nKey: 'catFood', defaultName: 'Hotel & Restaurant', icon: Utensils },
-    { label: 'Services', i18nKey: 'catServices', defaultName: 'Services & Garage', icon: Wrench },
+    { label: 'All', i18nKey: 'catAll', defaultName: 'सर्व (All)', icon: LayoutGrid },
+    { label: 'Agri', i18nKey: 'catAgri', defaultName: 'कृषी व बियाणे', icon: Sprout },
+    { label: 'Mobile', i18nKey: 'catMobile', defaultName: 'मोबाईल व रीपेअर', icon: Smartphone },
+    { label: 'Garments', i18nKey: 'catGarments', defaultName: 'कपडे व साडी', icon: Shirt },
+    { label: 'Grocery', i18nKey: 'catGrocery', defaultName: 'किराणा व मॉल', icon: ShoppingBag },
+    { label: 'Food', i18nKey: 'catFood', defaultName: 'हॉटेल व फूड', icon: Utensils },
+    { label: 'Hospitals', i18nKey: 'catHospitals', defaultName: 'दवाखाने व मेडिकल', icon: HeartPulse },
+    { label: 'Hardware', i18nKey: 'catHardware', defaultName: 'हार्डवेअर व पेंट्स', icon: Wrench },
+    { label: 'Jewellery', i18nKey: 'catJewellery', defaultName: 'ज्वेलर्स व सोनार', icon: Gem },
+    { label: 'Beauty', i18nKey: 'catBeauty', defaultName: 'ब्युटी व सलून', icon: Sparkles },
+    { label: 'Auto', i18nKey: 'catAuto', defaultName: 'ऑटो व गॅरेज', icon: Car },
+    { label: 'Coaching', i18nKey: 'catCoaching', defaultName: 'क्लासेस व शाळा', icon: GraduationCap },
+    { label: 'Furniture', i18nKey: 'catFurniture', defaultName: 'फर्निचर व सोफा', icon: Armchair },
+    { label: 'Footwear', i18nKey: 'catFootwear', defaultName: 'फूटवेअर व चप्पल', icon: Footprints },
+    { label: 'Electronics', i18nKey: 'catElectronics', defaultName: 'होम अप्लायन्सेस', icon: Tv },
+    { label: 'Stationery', i18nKey: 'catStationery', defaultName: 'स्टेशनरी व झेरॉक्स', icon: BookOpen },
+    { label: 'RealEstate', i18nKey: 'catRealEstate', defaultName: 'रिअल इस्टेट', icon: Building },
+    { label: 'Services', i18nKey: 'catServices', defaultName: 'सेवा व इतर', icon: Wrench },
   ];
 
   return (

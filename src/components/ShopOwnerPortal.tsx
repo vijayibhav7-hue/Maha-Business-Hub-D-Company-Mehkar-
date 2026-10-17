@@ -753,85 +753,95 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({
 
       {/* REQUEST AD MODAL */}
       {showAdModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-black text-slate-900">Request Homepage Ad Boost</h3>
-            
-            {adSuccess && (
-              <div className="bg-emerald-50 text-emerald-800 text-xs p-3 rounded-xl border font-bold">
-                {adSuccess}
-              </div>
-            )}
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 font-marathi overflow-hidden">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
+              <h3 className="text-sm sm:text-base font-black text-slate-900">Request Homepage Ad Boost</h3>
+              <button onClick={() => setShowAdModal(false)} className="w-8 h-8 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center font-bold text-slate-800 shrink-0" title="बंद करा">✕</button>
+            </div>
 
-            <form onSubmit={handleRequestAd} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Select Promotional Boost Package</label>
-                <select
-                  value={adAdType}
-                  onChange={(e) => setAdAdType(e.target.value as any)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-bold"
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 max-w-full">
+              {adSuccess && (
+                <div className="bg-emerald-50 text-emerald-800 text-xs p-3 rounded-xl border font-bold">
+                  {adSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleRequestAd} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Select Promotional Boost Package</label>
+                  <select
+                    value={adAdType}
+                    onChange={(e) => setAdAdType(e.target.value as any)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-bold text-slate-900"
+                  >
+                    <option value="Homepage Hero Banner (₹199/3 Days)">Homepage Hero Banner (₹199/3 Days)</option>
+                    <option value="Top Category Spotlight (₹299/Week)">Top Category Spotlight (₹299/Week)</option>
+                    <option value="Push Notification Broadcast (₹499)">Push Notification Broadcast (₹499)</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
                 >
-                  <option value="Homepage Hero Banner (₹199/3 Days)">Homepage Hero Banner (₹199/3 Days)</option>
-                  <option value="Top Category Spotlight (₹299/Week)">Top Category Spotlight (₹299/Week)</option>
-                  <option value="Push Notification Broadcast (₹499)">Push Notification Broadcast (₹499)</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl"
-              >
-                Submit Ad Request to D Company
-              </button>
-            </form>
+                  Submit Ad Request to D Company
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}
 
       {/* ORDER STANDEE MODAL */}
       {showStandeeModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-black text-slate-900">Order Physical Acrylic D-QR Counter Board</h3>
-            
-            {standeeSuccess && (
-              <div className="bg-emerald-50 text-emerald-800 text-xs p-3 rounded-xl border font-bold">
-                {standeeSuccess}
-              </div>
-            )}
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 font-marathi overflow-hidden">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
+              <h3 className="text-sm sm:text-base font-black text-slate-900">Order Physical Acrylic D-QR Counter Board</h3>
+              <button onClick={() => setShowStandeeModal(false)} className="w-8 h-8 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center font-bold text-slate-800 shrink-0" title="बंद करा">✕</button>
+            </div>
 
-            <form onSubmit={handleOrderStandee} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Select Material Type</label>
-                <select
-                  value={standeeMaterial}
-                  onChange={(e) => setStandeeMaterial(e.target.value as any)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-bold"
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 max-w-full">
+              {standeeSuccess && (
+                <div className="bg-emerald-50 text-emerald-800 text-xs p-3 rounded-xl border font-bold">
+                  {standeeSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleOrderStandee} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Select Material Type</label>
+                  <select
+                    value={standeeMaterial}
+                    onChange={(e) => setStandeeMaterial(e.target.value as any)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-bold text-slate-900"
+                  >
+                    <option value="Premium Acrylic Board (₹299)">Premium Acrylic Board (₹299)</option>
+                    <option value="Wooden Counter Standee (₹499)">Wooden Counter Standee (₹499)</option>
+                    <option value="Heavy Duty Vinyl Sticker (₹149)">Heavy Duty Vinyl Sticker (₹149)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Delivery Address</label>
+                  <input
+                    type="text"
+                    required
+                    value={standeeAddress}
+                    onChange={(e) => setStandeeAddress(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 font-medium"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
                 >
-                  <option value="Premium Acrylic Board (₹299)">Premium Acrylic Board (₹299)</option>
-                  <option value="Wooden Counter Standee (₹499)">Wooden Counter Standee (₹499)</option>
-                  <option value="Heavy Duty Vinyl Sticker (₹149)">Heavy Duty Vinyl Sticker (₹149)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Delivery Address</label>
-                <input
-                  type="text"
-                  required
-                  value={standeeAddress}
-                  onChange={(e) => setStandeeAddress(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-300"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl"
-              >
-                Place Standee Order (D Company Direct)
-              </button>
-            </form>
+                  Place Standee Order (D Company Direct)
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}

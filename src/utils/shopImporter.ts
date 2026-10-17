@@ -25,12 +25,22 @@ export interface ParsedShopData {
 
 const CATEGORY_KEYWORDS: { [key in Category]: string[] } = {
   Agri: ['agri', 'krushi', 'seed', 'fertilizer', 'kisan', 'pesticide', 'irrigation', 'शेती', 'कृषी', 'खते', 'बियाणे', 'औषधे', 'किसान', 'ठिबक', 'अ‍ॅग्री'],
-  Mobile: ['mobile', 'cell', 'phone', 'recharge', 'electronics', 'repair', 'sim', 'मोबाईल', 'फोन', 'रिचार्ज', 'इलेक्ट्रॉनिक्स', 'टॅब्लेट'],
+  Mobile: ['mobile', 'cell', 'phone', 'recharge', 'repair', 'sim', 'मोबाईल', 'फोन', 'रिचार्ज', 'टॅब्लेट'],
   Garments: ['garment', 'cloth', 'saree', 'fashion', 'wear', 'dress', 'suiting', 'shirting', 'कपडे', 'साडी', 'रेडीमेड', 'गारमेंट्स', 'ड्रेस', 'कापड', 'क्लॉथ'],
   Hospitals: ['hospital', 'clinic', 'doctor', 'pharma', 'medical', 'dentist', 'eye', 'दवाखाना', 'हॉस्पिटल', 'क्लिनिक', 'डॉक्टर', 'मेडिकल', 'औषध'],
   Coaching: ['class', 'coaching', 'school', 'academy', 'education', 'college', 'tuition', 'क्लास', 'कोचिंग', 'अकॅडमी', 'शिक्षण', 'शाळा', 'कॉलेज'],
   Food: ['hotel', 'restaurant', 'dhaba', 'cafe', 'bakers', 'food', 'sweets', 'snack', 'ताजी', 'स्वीट्स', 'हॉटेल', 'रेस्टॉरंट', 'ढाबा', 'कॅफे', 'बेकरी', 'खाद्य', 'भोजनालय'],
-  Services: ['service', 'garage', 'auto', 'beauty', 'saloon', 'hardware', 'electric', 'plumber', 'jewel', 'गॅरेज', 'सर्व्हिस', 'ब्युटी', 'सलून', 'हार्डवेअर', 'प्लंबर', 'ज्वेलर्स', 'सोनार']
+  Grocery: ['kirana', 'grocery', 'supermarket', 'mart', 'general', 'store', 'किराणा', 'जनरल', 'मार्ट', 'सुपरमार्केट', 'भाजीपर्ला'],
+  Hardware: ['hardware', 'plywood', 'paint', 'pipe', 'cement', 'sanitary', 'plumber', 'हार्डवेअर', 'पेंट', 'पाइप', 'सिमेंट', 'प्लंबर', 'प्लायवूड'],
+  Jewellery: ['jewel', 'gold', 'silver', 'diamond', 'sonar', 'ज्वेलर्स', 'सुवर्णकार', 'सोने', 'चांदी', 'दागिने'],
+  Beauty: ['beauty', 'parlour', 'salon', 'makeup', 'spa', 'barber', 'ब्युटी', 'पार्लर', 'सलून', 'मेकअप', 'हेअर'],
+  Auto: ['auto', 'garage', 'spare', 'tyre', 'car', 'bike', 'motor', 'ऑटो', 'गॅरेज', 'स्पेयर', 'टायर', 'सर्व्हिसिंग', 'बाईक'],
+  Furniture: ['furniture', 'sofa', 'bed', 'decor', 'mat', 'interior', 'फर्निचर', 'सोफा', 'गादी', 'मॅट्रेस', 'गृहसजावट'],
+  Footwear: ['shoe', 'footwear', 'slipper', 'sandal', 'chappal', 'शूज', 'चप्पल', 'फूटवेअर', 'बूट'],
+  Electronics: ['electronic', 'appliance', 'fridge', 'tv', 'ac', 'cooler', 'washing', 'इलेक्ट्रॉनिक्स', 'टीव्ही', 'फ्रिज', 'कुलर'],
+  Stationery: ['stationery', 'book', 'print', 'xerox', 'dTP', 'स्टेशनरी', 'झेरॉक्स', 'पुस्तके', 'प्रिंटिंग', 'कागद'],
+  RealEstate: ['property', 'estate', 'builder', 'plot', 'flat', 'land', 'प्रॉपर्टी', 'रिअल इस्टेट', 'प्लॉट', 'फ्लॅट', 'जमीन'],
+  Services: ['service', 'electric', 'laundry', 'tailor', 'photo', 'studio', 'सर्व्हिस', 'इलेक्ट्रिशियन', 'शिंपी', 'टेलर्स', 'फोटो', 'स्टूडिओ']
 };
 
 const CATEGORY_PRESET_IMAGES: { [key in Category]: string } = {
@@ -40,6 +50,16 @@ const CATEGORY_PRESET_IMAGES: { [key in Category]: string } = {
   Hospitals: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=800&q=80',
   Coaching: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
   Food: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
+  Grocery: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',
+  Hardware: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+  Jewellery: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=80',
+  Beauty: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
+  Auto: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=800&q=80',
+  Furniture: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80',
+  Footwear: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80',
+  Electronics: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80',
+  Stationery: 'https://images.unsplash.com/photo-1456735190827-d1262f71b8a3?auto=format&fit=crop&w=800&q=80',
+  RealEstate: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
   Services: 'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=800&q=80'
 };
 
@@ -161,15 +181,6 @@ export const parseShopFromLinkOrText = (input: string): ParsedShopData => {
       .replace(/https?:\/\/\S+/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
-  }
-
-  // High Quality Default Fill - NEVER LEAVE BLANK!
-  if (!extractedName || extractedName.startsWith('http')) {
-    extractedName = 'डिजिटल सुपर शॉप (मेहकर)';
-  }
-
-  if (!extractedPhone) {
-    extractedPhone = '9607636444';
   }
 
   // 3. Category Auto-Detection

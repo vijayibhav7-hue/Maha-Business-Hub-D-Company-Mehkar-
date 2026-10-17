@@ -13,7 +13,7 @@ import {
   Loader2,
   Search
 } from 'lucide-react';
-import { Category, Business, PlanType } from '../types';
+import { Category, Business, PlanType, ALL_CATEGORIES } from '../types';
 import { parseShopFromLinkOrText } from '../utils/shopImporter';
 import { addBusiness, addAuditLog } from '../services/storage';
 import { MAHARASHTRA_DISTRICTS_DATA, getTalukasByDistrict } from '../data/maharashtraData';
@@ -142,6 +142,16 @@ export const ShopImporterModal: React.FC<ShopImporterModalProps> = ({
       Hospitals: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=800&q=80',
       Coaching: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
       Food: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
+      Grocery: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=800&q=80',
+      Hardware: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+      Jewellery: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=80',
+      Beauty: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80',
+      Auto: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=800&q=80',
+      Furniture: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80',
+      Footwear: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80',
+      Electronics: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80',
+      Stationery: 'https://images.unsplash.com/photo-1456735190827-d1262f71b8a3?auto=format&fit=crop&w=800&q=80',
+      RealEstate: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80',
       Services: 'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=800&q=80',
     };
 
@@ -190,39 +200,43 @@ export const ShopImporterModal: React.FC<ShopImporterModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-fade-in overflow-y-auto font-marathi">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl my-8 relative border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-fade-in font-marathi overflow-hidden">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[92vh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
         
-        {/* Close Button */}
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-200 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Sticky Header with Always-Visible Close Button */}
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
+          <div className="flex items-center gap-3 pr-4">
+            <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-2xl shadow-xs shrink-0">
+              <Globe className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                गूगल मॅप / वेबवरून दुकान फेच व ॲड करा
+              </h2>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                गूगल मॅप लिंक पेस्ट करा आणि 'फेच करा' दाबा; माहिती आपोआप भरेल.
+              </p>
+            </div>
+          </div>
 
-        {/* Modal Header */}
-        <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
-          <div className="p-3 bg-emerald-100 text-emerald-800 rounded-2xl shadow-xs">
-            <Globe className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-lg font-black text-slate-900">
-              गूगल मॅप / वेबवरून दुकान फेच व ॲड करा
-            </h2>
-            <p className="text-xs text-slate-500">
-              गूगल मॅपची लिंक पेस्ट करा आणि 'फेच करा' बटनावर दाबा; नाव, पत्ता व मॅप आपोआप लोड होईल.
-            </p>
-          </div>
+          <button 
+            onClick={onClose}
+            className="w-9 h-9 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center text-slate-800 font-black shrink-0 transition-colors"
+            title="बंद करा (Close)"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Auto Fetch Notice */}
-        {autoFetchNotice && (
-          <div className="mb-3 bg-emerald-50 text-emerald-900 text-xs p-3.5 rounded-2xl border border-emerald-300 font-bold flex items-center gap-2 shadow-xs">
-            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>{autoFetchNotice}</span>
-          </div>
-        )}
+        {/* Scrollable Form Body */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 max-w-full">
+          {/* Auto Fetch Notice */}
+          {autoFetchNotice && (
+            <div className="mb-3 bg-emerald-50 text-emerald-900 text-xs p-3.5 rounded-2xl border border-emerald-300 font-bold flex items-center gap-2 shadow-xs">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{autoFetchNotice}</span>
+            </div>
+          )}
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           
@@ -313,13 +327,11 @@ export const ShopImporterModal: React.FC<ShopImporterModalProps> = ({
                 onChange={(e) => setCategory(e.target.value as Category)}
                 className="w-full p-2.5 border border-slate-300 rounded-xl font-bold bg-white focus:ring-2 focus:ring-emerald-500"
               >
-                <option value="Agri">Agri (कृषी व बियाणे)</option>
-                <option value="Mobile">Mobile (मोबाईल व इलेक्ट्रॉनिक्स)</option>
-                <option value="Garments">Garments (कपडे व साडी सेंटर)</option>
-                <option value="Hospitals">Hospitals (दवाखाने व मेडिकल)</option>
-                <option value="Coaching">Coaching (क्लासेस व एज्युकेशन)</option>
-                <option value="Food">Food (हॉटेल व रेस्टॉरंट)</option>
-                <option value="Services">Services (सेवा व गॅरेज)</option>
+                {ALL_CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.labelMr}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -451,5 +463,6 @@ export const ShopImporterModal: React.FC<ShopImporterModalProps> = ({
         </form>
       </div>
     </div>
-  );
+  </div>
+);
 };

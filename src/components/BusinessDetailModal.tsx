@@ -49,16 +49,19 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
   const hasSocial = isApproved && social && (social.facebook || social.instagram || social.twitter || social.youtube || social.website || social.googleBusiness);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-slate-200 relative my-8">
+    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-hidden animate-fadeIn font-marathi">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[92vh] sm:max-h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 relative">
         
-        {/* Close Button */}
+        {/* Sticky Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-900/80 text-white flex items-center justify-center hover:bg-slate-900 transition-colors shadow-md"
+          className="absolute top-3 right-3 z-30 w-9 h-9 rounded-full bg-slate-900/90 text-white flex items-center justify-center hover:bg-slate-950 transition-colors shadow-lg border border-white/20"
+          title="बंद करा (Close)"
         >
           <X className="w-5 h-5" />
         </button>
+
+        <div className="overflow-y-auto flex-1 max-w-full">
 
         {/* Header Hero Photo */}
         <div className="relative h-60 w-full bg-slate-100">
@@ -288,8 +291,8 @@ export const BusinessDetailModal: React.FC<BusinessDetailModalProps> = ({
           </div>
 
         </div>
-
       </div>
     </div>
-  );
+  </div>
+);
 };

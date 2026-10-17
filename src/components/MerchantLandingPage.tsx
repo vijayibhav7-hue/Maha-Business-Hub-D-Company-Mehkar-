@@ -15,10 +15,14 @@ import {
   Send, 
   ShieldAlert, 
   ArrowLeft,
-  QrCode
+  QrCode,
+  Search,
+  Loader2
 } from 'lucide-react';
-import { Category, PlanType } from '../types';
+import { Category, PlanType, ALL_CATEGORIES } from '../types';
 import { addMerchantInquiry } from '../services/storage';
+import { MAHARASHTRA_DISTRICTS_DATA, getTalukasByDistrict } from '../data/maharashtraData';
+import { parseShopFromLinkOrText } from '../utils/shopImporter';
 
 interface MerchantLandingPageProps {
   onBackToDirectory: () => void;
@@ -32,12 +36,70 @@ export const MerchantLandingPage: React.FC<MerchantLandingPageProps> = ({
   const [merchantName, setMerchantName] = useState('');
   const [shopName, setShopName] = useState('');
   const [category, setCategory] = useState<Category>('Mobile');
-  const [region, setRegion] = useState<'Mehkar' | 'Lonar'>('Mehkar');
+  const [district, setDistrict] = useState('Buldhana');
+  const [taluka, setTaluka] = useState('Mehkar');
+  const [village, setVillage] = useState('Mehkar');
+  const [region, setRegion] = useState<string>('Mehkar');
+  const [address, setAddress] = useState('');
   const [mobile, setMobile] = useState('');
+  const [gmapsUrl, setGmapsUrl] = useState('');
   const [packageChoice, setPackageChoice] = useState<PlanType>('Gold ₹999');
   const [serviceInterested, setServiceInterested] = useState('AI Reels + Google Maps + D-QR Standee');
   const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  // Auto fetch from Google Maps URL / message
+  const [isFetchingGmaps, setIsFetchingGmaps] = useState(false);
+  const [fetchNotice, setFetchNotice] = useState('');
+
+  const handleFetchGmapsInquiry = async (inputStr?: string) => {
+    const textToParse = inputStr !== undefined ? inputStr : gmapsUrl;
+    if (!textToParse.trim()) return;
+
+    setIsFetchingGmaps(true);
+    setFetchNotice('');
+
+    try {
+      const local = parseShopFromLinkOrText(textToParse);
+      if (local.name && local.name !== 'डिजिटल सुपर शॉप (मेहकर)') {
+        setShopName(local.name);
+      }
+      if (local.ownerPhone && local.ownerPhone !== '9607636444') {
+        setMobile(local.ownerPhone);
+      }
+      if (local.category) setCategory(local.category);
+      if (local.district) setDistrict(local.district);
+      if (local.taluka) setTaluka(local.taluka);
+      if (local.village) setVillage(local.village);
+      if (local.region) setRegion(local.region || local.taluka || 'Mehkar');
+      if (local.address) setAddress(local.address);
+      if (local.googleMapUrl) setGmapsUrl(local.googleMapUrl);
+
+      const match = textToParse.match(/(https?:\/\/[^\s]+)/);
+      if (match) {
+        const res = await fetch(`/api/expand-maps-link?url=${encodeURIComponent(match[1])}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            if (data.title) setShopName(data.title);
+            if (data.phone) setMobile(data.phone);
+            if (data.address) setAddress(data.address);
+            if (data.finalUrl) setGmapsUrl(data.finalUrl);
+            setFetchNotice(`✅ गूगल मॅपवरून दुकानाचे नाव व पत्ता आपोआप प्राप्त झाले!`);
+          } else {
+            setFetchNotice('गूगल मॅप लिंक सेट झाली!');
+          }
+        }
+      } else {
+        setFetchNotice('✅ मेसेजवरून दुकानाची माहिती प्राप्त झाली!');
+      }
+    } catch {
+      setFetchNotice('गूगल मॅप लिंक जोडली गेली.');
+    } finally {
+      setIsFetchingGmaps(false);
+      setTimeout(() => setFetchNotice(''), 6000);
+    }
+  };
 
   const handleSubmitInquiry = (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,8 +387,60 @@ export const MerchantLandingPage: React.FC<MerchantLandingPageProps> = ({
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmitInquiry} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmitInquiry} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             
+            {/* Google Maps Auto Importer Box */}
+            <div className="sm:col-span-2 bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200 space-y-2">
+              <label className="block font-bold text-amber-900 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <span>गूगल मॅपची लिंक पेस्ट करा (Paste Google Maps Link):</span>
+                </span>
+                <span className="text-[10px] text-amber-800 font-extrabold bg-amber-200/80 px-2 py-0.5 rounded-md">
+                  Auto-Fill Shop & Address
+                </span>
+              </label>
+              
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="https://maps.app.goo.gl/..."
+                  value={gmapsUrl}
+                  onChange={(e) => {
+                    setGmapsUrl(e.target.value);
+                    if (e.target.value.includes('http')) {
+                      handleFetchGmapsInquiry(e.target.value);
+                    }
+                  }}
+                  className="flex-1 p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-[11px] focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                />
+                <button
+                  type="button"
+                  disabled={isFetchingGmaps}
+                  onClick={() => handleFetchGmapsInquiry()}
+                  className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shrink-0 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isFetchingGmaps ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                      <span>फेच होत आहे...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      <span>माहिती फेच करा</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {fetchNotice && (
+                <div className="text-[11px] text-emerald-800 font-bold bg-emerald-100 p-2 rounded-xl border border-emerald-300">
+                  {fetchNotice}
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">तुमचे नाव (Merchant Name) *</label>
               <input
@@ -335,7 +449,7 @@ export const MerchantLandingPage: React.FC<MerchantLandingPageProps> = ({
                 value={merchantName}
                 onChange={(e) => setMerchantName(e.target.value)}
                 placeholder="उदा. राहुल देशपांडे"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-hidden"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-hidden"
               />
             </div>
 
@@ -347,7 +461,7 @@ export const MerchantLandingPage: React.FC<MerchantLandingPageProps> = ({
                 value={shopName}
                 onChange={(e) => setShopName(e.target.value)}
                 placeholder="उदा. साई मोबाईल सेन्टर"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-hidden"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-900 focus:ring-2 focus:ring-amber-500 outline-hidden"
               />
             </div>
 
@@ -356,28 +470,80 @@ export const MerchantLandingPage: React.FC<MerchantLandingPageProps> = ({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as Category)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-hidden"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-hidden"
               >
-                <option value="Mobile">Mobile & Electronics</option>
-                <option value="Garments">Garments & Clothes</option>
-                <option value="Agri">Agri & Krushi Kendra</option>
-                <option value="Food">Food & Hotel</option>
-                <option value="Hospitals">Hospitals & Medical</option>
-                <option value="Coaching">Coaching Classes</option>
-                <option value="Services">Services</option>
+                {ALL_CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>{c.labelMr}</option>
+                ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">विभाग (Region)</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">जिल्हा (District - महाराष्ट्र) *</label>
               <select
-                value={region}
-                onChange={(e) => setRegion(e.target.value as 'Mehkar' | 'Lonar')}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-hidden"
+                value={district}
+                onChange={(e) => {
+                  const d = e.target.value;
+                  setDistrict(d);
+                  const talukas = getTalukasByDistrict(d);
+                  if (talukas.length > 0) {
+                    setTaluka(talukas[0].name);
+                    setRegion(talukas[0].name);
+                    setVillage(talukas[0].name);
+                  }
+                }}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-hidden"
               >
-                <option value="Mehkar">मेहकर (Mehkar)</option>
-                <option value="Lonar">लोणार (Lonar)</option>
+                {MAHARASHTRA_DISTRICTS_DATA.map((d) => (
+                  <option key={d.name} value={d.name}>
+                    {d.nameMr} ({d.name})
+                  </option>
+                ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">तालुका (Taluka) *</label>
+              <select
+                value={taluka}
+                onChange={(e) => {
+                  const t = e.target.value;
+                  setTaluka(t);
+                  setRegion(t);
+                  setVillage(t);
+                }}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-hidden"
+              >
+                {getTalukasByDistrict(district).map((t) => (
+                  <option key={t.name} value={t.name}>
+                    {t.nameMr} ({t.name})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">गाव / शहर (Village/City) *</label>
+              <input
+                type="text"
+                required
+                value={village}
+                onChange={(e) => setVillage(e.target.value)}
+                placeholder="उदा. मेहकर / लोणार / सुपे"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-hidden"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1">दुकानाचा पूर्ण पत्ता (Full Address / Landmark) *</label>
+              <input
+                type="text"
+                required
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="उदा. जुन्या बस स्टँडजवळ, मेन रोड, मेहकर"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-hidden"
+              />
             </div>
 
             <div>
@@ -388,7 +554,7 @@ export const MerchantLandingPage: React.FC<MerchantLandingPageProps> = ({
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
                 placeholder="उदा. 9607636444"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-hidden"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-hidden"
               />
             </div>
 
@@ -397,7 +563,7 @@ export const MerchantLandingPage: React.FC<MerchantLandingPageProps> = ({
               <select
                 value={packageChoice}
                 onChange={(e) => setPackageChoice(e.target.value as PlanType)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500 outline-hidden"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-hidden"
               >
                 <option value="Free">फ्री प्लॅन (₹0)</option>
                 <option value="Silver ₹499">सिल्व्हर प्लॅन (₹499)</option>

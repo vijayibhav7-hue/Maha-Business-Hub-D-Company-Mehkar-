@@ -49,29 +49,35 @@ export const WhatsAppCampaignCenterModal: React.FC<WhatsAppCampaignCenterModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto font-marathi">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl my-8 relative">
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Modal Header */}
-        <div className="flex items-center gap-3 border-b border-gray-100 pb-4 mb-5">
-          <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl">
-            <Megaphone className="w-6 h-6" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs font-marathi overflow-hidden animate-fade-in">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full max-h-[92vh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
+        
+        {/* Sticky Header with Close Button */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
+          <div className="flex items-center gap-3 pr-2">
+            <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-2xl shadow-xs shrink-0">
+              <Megaphone className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
+                व्हॉट्सॲप डिजिटल कॅम्पेन सेंटर
+              </h2>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                १-क्लिकमध्ये मराठी प्रमोशनल मेसेज पाठवा.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">
-              व्हॉट्सॲप डिजिटल कॅम्पेन व ब्रॉडकास्ट सेंटर
-            </h2>
-            <p className="text-xs text-gray-500">
-              ग्राहक आणि दुकानदारांना १-क्लिकमध्ये मराठी प्रमोशनल मेसेज पाठवा.
-            </p>
-          </div>
+          <button 
+            onClick={onClose}
+            className="w-9 h-9 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center text-slate-800 font-bold shrink-0 transition-colors"
+            title="बंद करा"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* Scrollable Body */}
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 max-w-full">
 
         {/* Target Audience Tabs */}
         <div className="space-y-4">
@@ -188,5 +194,6 @@ export const WhatsAppCampaignCenterModal: React.FC<WhatsAppCampaignCenterModalPr
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };

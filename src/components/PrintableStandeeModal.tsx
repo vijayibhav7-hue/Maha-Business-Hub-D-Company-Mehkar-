@@ -25,24 +25,30 @@ export const PrintableStandeeModal: React.FC<PrintableStandeeModalProps> = ({
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrRefUrl)}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl my-8 relative font-marathi">
-        {/* Close Button */}
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="text-center mb-4">
-          <h2 className="text-xl font-bold text-gray-900">
-            डिजिटल क्यूआर स्टँडी बोर्ड (Print Ready Poster)
-          </h2>
-          <p className="text-xs text-gray-500">
-            हा क्यूआर कोड दुकानात लावण्यासाठी प्रिंट करा. ग्राहक स्कॅन करून सवलत मिळवतील.
-          </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-fade-in font-marathi overflow-hidden">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full max-h-[92vh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
+        
+        {/* Sticky Header with Close Button */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
+          <div>
+            <h2 className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
+              डिजिटल क्यूआर स्टँडी बोर्ड (Print Ready Poster)
+            </h2>
+            <p className="text-[11px] text-slate-500 leading-tight">
+              हा क्यूआर कोड दुकानात लावण्यासाठी प्रिंट करा.
+            </p>
+          </div>
+          <button 
+            onClick={onClose}
+            className="w-9 h-9 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center text-slate-800 font-bold shrink-0 transition-colors"
+            title="बंद करा"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* Scrollable Body */}
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 max-w-full">
 
         {/* PRINTABLE STANDEE POSTER CONTAINER */}
         <div 
@@ -134,5 +140,6 @@ export const PrintableStandeeModal: React.FC<PrintableStandeeModalProps> = ({
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };

@@ -328,7 +328,7 @@ export const addCoupon = (
   businessId: string,
   businessName: string,
   category: Category,
-  region: 'Mehkar' | 'Lonar',
+  region: string,
   title: string,
   description: string,
   discountTag: string,
@@ -857,7 +857,7 @@ export const addLead = (
   businessId: string,
   businessName: string,
   category: Category,
-  region: 'Mehkar' | 'Lonar',
+  region: string,
   customerName: string,
   customerPhone: string
 ): Lead => {
@@ -901,6 +901,116 @@ export const updateAdminSettings = (updates: Partial<AdminSettings>): AdminSetti
   const updated = { ...current, ...updates };
   localStorage.setItem(STORAGE_KEYS.ADMIN_SETTINGS, JSON.stringify(updated));
   return updated;
+};
+
+// SUBSCRIPTION PLANS CONTROL
+export const getSubscriptionPlans = () => {
+  const settings = getAdminSettings();
+  return settings.subscriptionPlans || INITIAL_ADMIN_SETTINGS.subscriptionPlans || [];
+};
+
+export const addSubscriptionPlan = (planData: {
+  name: string;
+  price: number;
+  durationMonths: number;
+  features: string[];
+  popular?: boolean;
+  isActive: boolean;
+}) => {
+  const settings = getAdminSettings();
+  const plans = settings.subscriptionPlans || INITIAL_ADMIN_SETTINGS.subscriptionPlans || [];
+  const newPlan = {
+    id: `plan-${Date.now()}`,
+    ...planData,
+  };
+  const updatedPlans = [...plans, newPlan];
+  updateAdminSettings({ subscriptionPlans: updatedPlans });
+  addAuditLog('PLAN_CREATED', 'D Company Admin', `Created new subscription plan: ${planData.name} (₹${planData.price})`);
+  return newPlan;
+};
+
+export const updateSubscriptionPlan = (
+  id: string,
+  planData: Partial<{
+    name: string;
+    price: number;
+    durationMonths: number;
+    features: string[];
+    popular?: boolean;
+    isActive: boolean;
+  }>
+) => {
+  const settings = getAdminSettings();
+  const plans = settings.subscriptionPlans || INITIAL_ADMIN_SETTINGS.subscriptionPlans || [];
+  const updatedPlans = plans.map((p) => (p.id === id ? { ...p, ...planData } : p));
+  updateAdminSettings({ subscriptionPlans: updatedPlans });
+  addAuditLog('PLAN_UPDATED', 'D Company Admin', `Updated subscription plan: ${id}`);
+  return updatedPlans;
+};
+
+export const deleteSubscriptionPlan = (id: string) => {
+  const settings = getAdminSettings();
+  const plans = settings.subscriptionPlans || INITIAL_ADMIN_SETTINGS.subscriptionPlans || [];
+  const updatedPlans = plans.filter((p) => p.id !== id);
+  updateAdminSettings({ subscriptionPlans: updatedPlans });
+  addAuditLog('PLAN_DELETED', 'D Company Admin', `Deleted subscription plan: ${id}`);
+  return updatedPlans;
+};
+
+// BANNER & AD CONTROL
+export const addAdBanner = (bannerData: {
+  title: string;
+  subtitle: string;
+  discountBadge: string;
+  imageUrl: string;
+  targetShopId?: string;
+  active: boolean;
+}) => {
+  const settings = getAdminSettings();
+  const currentBanners = settings.banners || [];
+  const newBanner = {
+    id: `banner-${Date.now()}`,
+    ...bannerData,
+  };
+  const updatedBanners = [newBanner, ...currentBanners];
+  updateAdminSettings({ banners: updatedBanners });
+  addAuditLog('BANNER_CREATED', 'D Company Admin', `Created ad banner: ${bannerData.title}`);
+  return newBanner;
+};
+
+export const updateAdBanner = (
+  id: string,
+  bannerData: Partial<{
+    title: string;
+    subtitle: string;
+    discountBadge: string;
+    imageUrl: string;
+    targetShopId?: string;
+    active: boolean;
+  }>
+) => {
+  const settings = getAdminSettings();
+  const currentBanners = settings.banners || [];
+  const updatedBanners = currentBanners.map((b) => (b.id === id ? { ...b, ...bannerData } : b));
+  updateAdminSettings({ banners: updatedBanners });
+  addAuditLog('BANNER_UPDATED', 'D Company Admin', `Updated ad banner: ${id}`);
+  return updatedBanners;
+};
+
+export const deleteAdBanner = (id: string) => {
+  const settings = getAdminSettings();
+  const currentBanners = settings.banners || [];
+  const updatedBanners = currentBanners.filter((b) => b.id !== id);
+  updateAdminSettings({ banners: updatedBanners });
+  addAuditLog('BANNER_DELETED', 'D Company Admin', `Deleted ad banner: ${id}`);
+  return updatedBanners;
+};
+
+export const deleteAdRequest = (id: string) => {
+  const list = getAdRequests();
+  const updated = list.filter((a) => a.id !== id);
+  localStorage.setItem(STORAGE_KEYS.AD_REQUESTS, JSON.stringify(updated));
+  addAuditLog('AD_REQUEST_DELETED', 'D Company Admin', `Deleted ad request: ${id}`);
 };
 
 export const verifyAdminPin = (inputPin: string): boolean => {
@@ -977,7 +1087,7 @@ export const addMerchantInquiry = (
   merchantName: string,
   shopName: string,
   category: Category,
-  region: 'Mehkar' | 'Lonar',
+  region: string,
   mobile: string,
   serviceInterested: string,
   packageChoice: PlanType,

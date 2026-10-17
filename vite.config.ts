@@ -40,48 +40,72 @@ export default defineConfig(() => {
               // 1. Extract Title from HTML or Final Redirected URL
               let extractedTitle = '';
 
-              // Try URL place extraction first
+              // Try URL place / search slug extraction first
               if (finalUrl.includes('/maps/place/')) {
                 const rawSlug = finalUrl.split('/maps/place/')[1]?.split('/')[0] || '';
                 if (rawSlug) {
                   extractedTitle = decodeURIComponent(rawSlug.replace(/\+/g, ' ')).split(',')[0].split('@')[0].trim();
                 }
+              } else if (finalUrl.includes('/maps/search/')) {
+                const rawSlug = finalUrl.split('/maps/search/')[1]?.split('/')[0] || '';
+                if (rawSlug) {
+                  extractedTitle = decodeURIComponent(rawSlug.replace(/\+/g, ' ')).split(',')[0].split('@')[0].trim();
+                }
               }
 
-              // Try <title> tag
-              if (!extractedTitle) {
+              // Try <title> tag or meta og:title
+              if (!extractedTitle || extractedTitle.toLowerCase().includes('google maps')) {
+                const metaTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
+                                       html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
+                if (metaTitleMatch) {
+                  extractedTitle = metaTitleMatch[1].replace(/\s*-\s*Google Maps.*/i, '').replace(/\s*·\s*Google Maps.*/i, '').trim();
+                }
+              }
+
+              if (!extractedTitle || extractedTitle.toLowerCase().includes('google maps')) {
                 const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
                 if (titleMatch) {
                   let rawTitle = titleMatch[1];
-                  rawTitle = rawTitle.replace(/\s*-\s*Google Maps.*/i, '').replace(/\s*-\s*Google Search.*/i, '').trim();
+                  rawTitle = rawTitle.replace(/\s*-\s*Google Maps.*/i, '').replace(/\s*-\s*Google Search.*/i, '').replace(/\s*·\s*Google Maps.*/i, '').trim();
                   if (rawTitle && !rawTitle.toLowerCase().includes('google maps')) {
                     extractedTitle = rawTitle;
                   }
                 }
               }
 
-              // Try meta og:title or og:description
-              if (!extractedTitle) {
-                const metaMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
-                                  html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
-                if (metaMatch) {
-                  extractedTitle = metaMatch[1].replace(/\s*-\s*Google Maps.*/i, '').trim();
-                }
+              // Clean extractedTitle
+              if (extractedTitle) {
+                extractedTitle = extractedTitle
+                  .replace(/[\@\?\#].*/, '')
+                  .replace(/[-|_].*Google Maps.*/i, '')
+                  .trim();
               }
 
-              // 2. Extract Phone Number from HTML
+              // 2. Extract Phone Number
               let extractedPhone = '';
               const phoneMatch = html.match(/(?:\+91[\s-]?)?([6-9]\d{9})/);
               if (phoneMatch) {
                 extractedPhone = phoneMatch[1];
               }
 
-              // 3. Extract Address from og:description or HTML
+              // 3. Extract Address & Category from og:description
               let extractedAddress = '';
               const descMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
                                  html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i);
               if (descMatch) {
-                extractedAddress = descMatch[1].replace(/·/g, ',').trim();
+                let rawDesc = descMatch[1];
+                // Remove star rating like ★★★★★ or 4.9 (120)
+                rawDesc = rawDesc.replace(/★+/g, '').replace(/[\d\.]+\s*\(\d+\)\s*·?/g, '').trim();
+                const parts = rawDesc.split('·').map(p => p.trim()).filter(p => p.length > 0);
+                if (parts.length > 0) {
+                  // Last part or second part is usually full address
+                  extractedAddress = parts[parts.length - 1];
+                  if (parts.length > 1 && extractedAddress.length < 5) {
+                    extractedAddress = parts.join(', ');
+                  }
+                } else {
+                  extractedAddress = rawDesc;
+                }
               }
 
               res.statusCode = 200;

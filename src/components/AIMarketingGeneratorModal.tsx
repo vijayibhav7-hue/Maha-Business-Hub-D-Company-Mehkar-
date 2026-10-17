@@ -50,30 +50,36 @@ export const AIMarketingGeneratorModal: React.FC<AIMarketingGeneratorModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl my-8 relative font-marathi">
-        {/* Close Button */}
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs font-marathi overflow-hidden animate-fade-in">
+      <div className="bg-white rounded-2xl sm:rounded-3xl max-w-xl w-full max-h-[92vh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden relative">
+        
+        {/* Sticky Header */}
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 bg-slate-50 shrink-0 sticky top-0 z-20">
+          <div className="flex items-center gap-3 pr-4">
+            <div className="p-2.5 bg-purple-100 text-purple-700 rounded-2xl shadow-xs shrink-0">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight">
+                AI १-क्लिक ऑफर व मार्केटिंग कॉपी जनरेटर
+              </h2>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                {shop.name} ({shop.category}) साठी सानुकूल पोस्ट तयार करा.
+              </p>
+            </div>
+          </div>
 
-        {/* Modal Header */}
-        <div className="flex items-center gap-3 border-b border-gray-100 pb-4 mb-5">
-          <div className="p-3 bg-purple-100 text-purple-700 rounded-xl">
-            <Sparkles className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">
-              AI १-क्लिक ऑफर व मार्केटिंग कॉपी जनरेटर
-            </h2>
-            <p className="text-xs text-gray-500">
-              {shop.name} ({shop.category}) साठी आकर्षक ऑफर आणि व्हॉट्सॲप पोस्ट तयार करा.
-            </p>
-          </div>
+          <button 
+            onClick={onClose}
+            className="w-9 h-9 rounded-full bg-slate-200/80 hover:bg-slate-300 flex items-center justify-center text-slate-800 font-bold shrink-0 transition-colors"
+            title="बंद करा"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* Scrollable Body */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 max-w-full">
 
         {/* Filters */}
         <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 text-xs">
@@ -178,5 +184,6 @@ export const AIMarketingGeneratorModal: React.FC<AIMarketingGeneratorModalProps>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
